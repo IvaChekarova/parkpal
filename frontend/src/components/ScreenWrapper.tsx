@@ -5,22 +5,19 @@ import theme from "../theme";
 
 type Props = {
   children: ReactNode;
-  style?: ViewStyle | ViewStyle[];
+  style?: ViewStyle;
 };
 
-export default function Centered({ children, style }: Props) {
+export default function ScreenWrapper({ children, style }: Props) {
   return (
-    <SafeAreaView style={[styles.container, style as any]}>
-      {children}
-    </SafeAreaView>
+    <SafeAreaView style={[styles.container, style]}>{children}</SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: theme.Colors.background,
+    padding: theme.Spacing.md,
   },
 });
