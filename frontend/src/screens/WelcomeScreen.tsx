@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
       <Button
         title="Continue to Home"
         variant="secondary"
-        onPress={() => navigation.navigate("Home")}
+        onPress={() => navigation.navigate("Login")}
       />
     </ScreenWrapper>
   );
