@@ -1,15 +1,42 @@
-import React from "react";
-import { Text, StyleSheet } from "react-native";
-import Centered from "../components/Centered";
+import React, { useState } from "react";
+import { StyleSheet, Text } from "react-native";
+import ScreenWrapper from "../components/ScreenWrapper";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import theme from "../theme";
 
 export default function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   return (
-    <Centered>
-      <Text style={styles.title}>Login</Text>
-    </Centered>
+    <ScreenWrapper>
+      <Text style={theme.Typography.title}>Login</Text>
+
+      <Text style={{ height: theme.Spacing.md }} />
+
+      <Input
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+
+      <Text style={{ height: theme.Spacing.sm }} />
+
+      <Input
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+
+      <Text style={{ height: theme.Spacing.md }} />
+
+      <Button title="Login" onPress={() => {}} />
+    </ScreenWrapper>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { fontSize: 22, fontWeight: "600", color: "#111" },
-});
+const styles = StyleSheet.create({});

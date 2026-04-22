@@ -1,15 +1,18 @@
 import React from "react";
 import { Text, StyleSheet } from "react-native";
-import Centered from "../components/Centered";
+import ScreenWrapper from "../components/ScreenWrapper";
+import theme from "../theme";
 
 export default function ReservationsScreen() {
   return (
-    <Centered>
-      <Text style={styles.title}>Reservations</Text>
-    </Centered>
+    <ScreenWrapper>
+      <Text style={theme.Typography.title}>Reservations</Text>
+      <Text style={{ height: theme.Spacing.md }} />
+      <Text style={theme.Typography.body}>
+        Your reservations will appear here.
+      </Text>
+    </ScreenWrapper>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { fontSize: 22, fontWeight: "600", color: "#111" },
-});
+const styles = StyleSheet.create({});

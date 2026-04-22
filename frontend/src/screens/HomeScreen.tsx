@@ -1,16 +1,16 @@
 import React from "react";
 import { Text, StyleSheet } from "react-native";
-import Centered from "../components/Centered";
+import ScreenWrapper from "../components/ScreenWrapper";
 import theme from "../theme";
 
 export default function HomeScreen() {
   return (
-    <Centered>
-      <Text style={[styles.title, theme.Typography.title]}>Home</Text>
-    </Centered>
+    <ScreenWrapper>
+      <Text style={theme.Typography.title}>Home</Text>
+      <Text style={{ height: theme.Spacing.md }} />
+      <Text style={theme.Typography.body}>Parking list will be here.</Text>
+    </ScreenWrapper>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { color: theme.Colors.textPrimary },
-});
+const styles = StyleSheet.create({});
