@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { SafeAreaView, StyleSheet, ViewStyle } from "react-native";
+import theme from "../theme";
 
 type Props = {
   children: ReactNode;
@@ -19,6 +20,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.Colors.background,
   },
 });

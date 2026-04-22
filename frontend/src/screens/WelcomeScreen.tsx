@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Centered from "../components/Centered";
 import type { RootStackParamList } from "../navigation/types";
+import theme from "../theme";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -12,12 +13,17 @@ export default function WelcomeScreen() {
 
   return (
     <Centered>
-      <Text style={styles.title}>Welcome to ParkPal</Text>
+      <Text style={[styles.title, theme.Typography.title]}>
+        Welcome to ParkPal
+      </Text>
+      <Text style={{ height: theme.Spacing.md }} />
       <Button title="Login" onPress={() => navigation.navigate("Login")} />
+      <Text style={{ height: theme.Spacing.sm }} />
       <Button
         title="Register"
         onPress={() => navigation.navigate("Register")}
       />
+      <Text style={{ height: theme.Spacing.sm }} />
       <Button
         title="Continue to Home"
         onPress={() => navigation.navigate("Home")}
@@ -28,9 +34,6 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#111",
-    marginBottom: 16,
+    marginBottom: theme.Spacing.md,
   },
 });

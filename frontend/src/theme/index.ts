@@ -1,14 +1,9 @@
-export const Colors = {
-  primary: "#0A84FF",
-  background: "#FFFFFF",
-  text: "#111111",
-  muted: "#7D7D7D",
-};
+import { Colors } from "./colors";
+import { Spacing } from "./spacing";
+import { Typography } from "./typography";
+import { Radius } from "./radius";
 
-export const Spacing = {
-  small: 8,
-  medium: 16,
-  large: 24,
-};
+const theme = { Colors, Spacing, Typography, Radius };
 
-export default { Colors, Spacing };
+export { Colors, Spacing, Typography, Radius };
+export default theme;
