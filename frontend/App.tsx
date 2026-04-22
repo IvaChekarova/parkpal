@@ -1,19 +1,16 @@
+import React from "react";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView, StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import RootNavigator from "./src/navigation/RootNavigator";
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
-      <Text>ParkPal</Text>
+    <NavigationContainer>
+      <RootNavigator />
       <StatusBar style="auto" />
-    </SafeAreaView>
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+const styles = StyleSheet.create({ app: { flex: 1 } });
