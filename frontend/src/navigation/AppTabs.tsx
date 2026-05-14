@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
+import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
 import ReservationsScreen from "../screens/ReservationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import theme from "../theme";
@@ -31,6 +32,11 @@ function HomeStackScreen() {
       <HomeStack.Screen
         name="ParkingDetails"
         component={ParkingDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="ReservationConfirm"
+        component={ReservationConfirmScreen}
         options={{ headerShown: false }}
       />
     </HomeStack.Navigator>

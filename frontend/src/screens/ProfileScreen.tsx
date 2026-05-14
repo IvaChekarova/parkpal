@@ -42,8 +42,22 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topSection}>
           <View style={styles.avatar} />
-          <Text style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}>Iva Chekarova</Text>
-          <Text style={[theme.Typography.caption, { color: theme.Colors.textSecondary, marginTop: theme.Spacing.xs }]}>iva@example.com</Text>
+          <Text
+            style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}
+          >
+            Iva Chekarova
+          </Text>
+          <Text
+            style={[
+              theme.Typography.caption,
+              {
+                color: theme.Colors.textSecondary,
+                marginTop: theme.Spacing.xs,
+              },
+            ]}
+          >
+            iva@example.com
+          </Text>
         </View>
 
         <View style={{ height: theme.Spacing.md }} />
@@ -63,7 +77,14 @@ export default function ProfileScreen() {
         <SectionTitle>Actions</SectionTitle>
         <Card style={styles.actionsCard}>
           {actions.map((a) => (
-            <Pressable key={a.key} onPress={() => Alert.alert(a.key)} style={({ pressed }) => [styles.actionRow, pressed && { opacity: 0.7 }]}>
+            <Pressable
+              key={a.key}
+              onPress={() => Alert.alert(a.key)}
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
               <Text style={theme.Typography.body}>{a.key}</Text>
               <Text style={styles.chev}>›</Text>
             </Pressable>
@@ -92,8 +113,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   infoCard: { marginTop: theme.Spacing.sm },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: theme.Spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.Colors.border },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: theme.Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.Colors.border,
+  },
   actionsCard: { marginTop: theme.Spacing.sm },
-  actionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: theme.Spacing.sm },
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: theme.Spacing.sm,
+  },
   chev: { color: theme.Colors.textSecondary, fontSize: 18 },
 });

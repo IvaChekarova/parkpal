@@ -155,9 +155,15 @@ export default function ParkingDetailsScreen() {
 
         <Button
           title="Reserve spot"
-          onPress={() => {
-            /* placeholder */
-          }}
+          onPress={() =>
+            navigation.navigate("ReservationConfirm", {
+              parking: {
+                name: data.name,
+                address: data.address,
+                pricePerHour: data.price,
+              },
+            })
+          }
         />
 
         <View style={{ height: theme.Spacing.xl }} />
