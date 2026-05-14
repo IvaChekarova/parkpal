@@ -20,6 +20,7 @@ export type RootStackParamList = {
     };
   };
   Reservations: undefined;
+  ReservationHistory: undefined;
   Profile: undefined;
 };
 

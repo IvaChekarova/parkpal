@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
+import ReservationHistoryScreen from "../screens/ReservationHistoryScreen";
 import ReservationsScreen from "../screens/ReservationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import theme from "../theme";
@@ -20,6 +21,7 @@ try {
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
+const ReservationsStack = createNativeStackNavigator();
 
 function HomeStackScreen() {
   return (
@@ -40,6 +42,23 @@ function HomeStackScreen() {
         options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
+  );
+}
+
+function ReservationsStackScreen() {
+  return (
+    <ReservationsStack.Navigator initialRouteName="Reservations">
+      <ReservationsStack.Screen
+        name="Reservations"
+        component={ReservationsScreen}
+        options={{ headerShown: false }}
+      />
+      <ReservationsStack.Screen
+        name="ReservationHistory"
+        component={ReservationHistoryScreen}
+        options={{ headerShown: false }}
+      />
+    </ReservationsStack.Navigator>
   );
 }
 
@@ -70,7 +89,7 @@ export default function AppTabs() {
       />
       <Tab.Screen
         name="Reservations"
-        component={ReservationsScreen}
+        component={ReservationsStackScreen}
         options={{ tabBarLabel: "Reservations" }}
       />
       <Tab.Screen

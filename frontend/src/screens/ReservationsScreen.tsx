@@ -1,16 +1,14 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
 import theme from "../theme";
+import type { RootStackParamList } from "../navigation/types";
+
+type NavProp = NativeStackNavigationProp<RootStackParamList, "Reservations">;
 
 const MOCK_RESERVATIONS = [
   {
@@ -43,6 +41,7 @@ const MOCK_RESERVATIONS = [
 ];
 
 export default function ReservationsScreen() {
+  const navigation = useNavigation<NavProp>();
   const active = MOCK_RESERVATIONS.filter((r) => r.status === "Active");
   const upcoming = MOCK_RESERVATIONS.filter((r) => r.status === "Upcoming");
 
@@ -109,7 +108,7 @@ export default function ReservationsScreen() {
       <View style={styles.headerRow}>
         <SectionTitle>Your reservations</SectionTitle>
         <Pressable
-          onPress={() => Alert.alert("History", "View history placeholder")}
+          onPress={() => navigation.navigate("ReservationHistory")}
           style={styles.historyLink}
         >
           <Text style={styles.historyText}>View history</Text>
