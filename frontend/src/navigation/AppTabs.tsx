@@ -14,7 +14,10 @@ function HomeStackScreen() {
   return (
     <HomeStack.Navigator initialRouteName="Home">
       <HomeStack.Screen name="Home" component={HomeScreen} />
-      <HomeStack.Screen name="ParkingDetails" component={ParkingDetailsScreen} />
+      <HomeStack.Screen
+        name="ParkingDetails"
+        component={ParkingDetailsScreen}
+      />
     </HomeStack.Navigator>
   );
 }
