@@ -13,6 +13,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Button from "../components/Button";
 import SectionTitle from "../components/SectionTitle";
 import Input from "../components/Input";
+import Logo from "../components/Logo";
 import type { RootStackParamList } from "../navigation/types";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -35,9 +36,7 @@ export default function WelcomeScreen() {
       >
         <View style={styles.middle}>
           <View style={styles.topSection}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>P</Text>
-            </View>
+            <Logo size={72} style={styles.logo} />
 
             <SectionTitle small>{"ParkPal"}</SectionTitle>
             <Text style={styles.subtitle}>
@@ -121,16 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: theme.Spacing.md,
   },
-  logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: theme.Spacing.md,
-  },
-  logoText: { color: "#fff", fontSize: 24, fontWeight: "700" },
+  logo: { marginBottom: theme.Spacing.md },
   subtitle: {
     ...theme.Typography.body,
     color: theme.Colors.textSecondary,
