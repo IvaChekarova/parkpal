@@ -71,7 +71,10 @@ export default function WelcomeScreen() {
                 onPress={() => {
                   if (canSubmit) login();
                 }}
-                style={{ borderRadius: theme.Radius.lg, paddingVertical: theme.Spacing.md }}
+                style={{
+                  borderRadius: theme.Radius.lg,
+                  paddingVertical: theme.Spacing.md,
+                }}
               />
 
               <View style={{ height: theme.Spacing.md }} />
@@ -90,7 +93,10 @@ export default function WelcomeScreen() {
                 onPress={() => {
                   login();
                 }}
-                style={{ borderRadius: theme.Radius.lg, paddingVertical: theme.Spacing.md }}
+                style={{
+                  borderRadius: theme.Radius.lg,
+                  paddingVertical: theme.Spacing.md,
+                }}
               />
             </View>
           </View>
@@ -146,7 +152,10 @@ const styles = StyleSheet.create({
   },
   dividerRow: { flexDirection: "row", alignItems: "center" },
   line: { flex: 1, height: 1, backgroundColor: theme.Colors.border },
-  orText: { marginHorizontal: theme.Spacing.sm, color: theme.Colors.textSecondary },
+  orText: {
+    marginHorizontal: theme.Spacing.sm,
+    color: theme.Colors.textSecondary,
+  },
   bottomRowInline: {
     flexDirection: "row",
     justifyContent: "center",
