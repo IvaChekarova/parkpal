@@ -167,7 +167,12 @@ export default function ParkingDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: theme.Spacing.lg, paddingBottom: theme.Spacing.xl * 2 },
+  // make horizontal padding match HomeScreen (more edge-to-edge)
+  container: {
+    paddingTop: theme.Spacing.lg,
+    paddingHorizontal: theme.Spacing.md,
+    paddingBottom: theme.Spacing.xl * 2,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -181,8 +186,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  leftBlock: { flex: 1, paddingRight: theme.Spacing.md },
-  rightBlock: { width: 120, alignItems: "flex-end" },
+  leftBlock: { flex: 1, paddingRight: theme.Spacing.sm },
+  rightBlock: { width: 100, alignItems: "flex-end" },
   cardBottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -202,7 +207,7 @@ const styles = StyleSheet.create({
     marginRight: theme.Spacing.xs,
   },
   statusLabel: { fontSize: 13, fontWeight: "600" },
-  hoursBlock: { alignItems: "flex-end", maxWidth: 160 },
+  hoursBlock: { alignItems: "flex-end", maxWidth: 140 },
   amenitiesRow: {
     flexDirection: "row",
     flexWrap: "wrap",

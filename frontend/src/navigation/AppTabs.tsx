@@ -6,6 +6,16 @@ import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationsScreen from "../screens/ReservationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import theme from "../theme";
+
+// dynamic require for @expo/vector-icons to avoid build errors if not installed
+let Ionicons: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Ionicons = require("@expo/vector-icons").Ionicons;
+} catch (e) {
+  Ionicons = null;
+}
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -29,7 +39,24 @@ function HomeStackScreen() {
 
 export default function AppTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: theme.Colors.primary,
+        tabBarInactiveTintColor: theme.Colors.textSecondary,
+        tabBarIcon: ({ color, size }) => {
+          const nameMap: Record<string, string> = {
+            HomeTab: "home-outline",
+            Reservations: "calendar-outline",
+            Profile: "person-outline",
+          };
+          const iconName = nameMap[route.name] || "ellipse";
+          if (Ionicons)
+            return <Ionicons name={iconName} size={size} color={color} />;
+          return <Text style={{ color, fontSize: size }}>•</Text>;
+        },
+      })}
+    >
       <Tab.Screen
         name="HomeTab"
         component={HomeStackScreen}
