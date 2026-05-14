@@ -21,6 +21,7 @@ function HomeStackScreen() {
       <HomeStack.Screen
         name="ParkingDetails"
         component={ParkingDetailsScreen}
+        options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
   );
