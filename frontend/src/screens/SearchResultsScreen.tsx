@@ -17,10 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import { Parking, useParking } from "../context/ParkingContext";
-import {
-  getBookingDateSummary,
-  getBookingHours,
-} from "../utils/booking";
+import { getBookingDateSummary, getBookingHours } from "../utils/booking";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -42,6 +39,9 @@ const PIN_POSITIONS = [
   { top: "58%", left: "70%" },
 ] as const;
 
+const TOP_BAR_HEIGHT = 52;
+const TOP_BAR_BOTTOM_GAP = 20;
+
 export default function SearchResultsScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProps>();
@@ -51,10 +51,16 @@ export default function SearchResultsScreen() {
   const { booking } = route.params;
   const [isSheetExpanded, setIsSheetExpanded] = React.useState(false);
   const collapsedHeight = windowHeight * 0.48;
-  const topOffset = insets.top + theme.Spacing.sm + 52 + theme.Spacing.md;
-  const expandedHeight = windowHeight - topOffset;
-  const sheetHeight = React.useRef(new Animated.Value(collapsedHeight)).current;
-  const gestureStartHeight = React.useRef(collapsedHeight);
+  const headerTop = insets.top + theme.Spacing.sm;
+  const expandedTop = insets.top + 96;
+  const collapsedTranslateY = Math.max(
+    windowHeight - expandedTop - collapsedHeight,
+    0,
+  );
+  const sheetTranslateY = React.useRef(
+    new Animated.Value(collapsedTranslateY),
+  ).current;
+  const gestureStartTranslateY = React.useRef(collapsedTranslateY);
   const durationHours = getBookingHours(booking);
   const dateSummary = getBookingDateSummary(booking);
   const availableParkings = parkings.filter(
@@ -69,13 +75,13 @@ export default function SearchResultsScreen() {
   }
 
   React.useEffect(() => {
-    Animated.spring(sheetHeight, {
-      toValue: isSheetExpanded ? expandedHeight : collapsedHeight,
-      useNativeDriver: false,
+    Animated.spring(sheetTranslateY, {
+      toValue: isSheetExpanded ? 0 : collapsedTranslateY,
+      useNativeDriver: true,
       damping: 24,
       stiffness: 220,
     }).start();
-  }, [collapsedHeight, expandedHeight, isSheetExpanded, sheetHeight]);
+  }, [collapsedTranslateY, isSheetExpanded, sheetTranslateY]);
 
   const panResponder = React.useMemo(
     () =>
@@ -83,44 +89,42 @@ export default function SearchResultsScreen() {
         onMoveShouldSetPanResponder: (_, gestureState) =>
           Math.abs(gestureState.dy) > 8,
         onPanResponderGrant: () => {
-          gestureStartHeight.current = isSheetExpanded
-            ? expandedHeight
-            : collapsedHeight;
-          sheetHeight.stopAnimation((value) => {
-            gestureStartHeight.current = value;
+          gestureStartTranslateY.current = isSheetExpanded
+            ? 0
+            : collapsedTranslateY;
+          sheetTranslateY.stopAnimation((value) => {
+            gestureStartTranslateY.current = value;
           });
         },
         onPanResponderMove: (_, gestureState) => {
-          const nextHeight = gestureStartHeight.current - gestureState.dy;
-          const clampedHeight = Math.min(
-            Math.max(nextHeight, collapsedHeight),
-            expandedHeight,
+          const nextTranslateY =
+            gestureStartTranslateY.current + gestureState.dy;
+          const clampedTranslateY = Math.min(
+            Math.max(nextTranslateY, 0),
+            collapsedTranslateY,
           );
-          sheetHeight.setValue(clampedHeight);
+          sheetTranslateY.setValue(clampedTranslateY);
         },
         onPanResponderRelease: (_, gestureState) => {
-          const finalHeight = Math.min(
-            Math.max(
-              gestureStartHeight.current - gestureState.dy,
-              collapsedHeight,
-            ),
-            expandedHeight,
+          const finalTranslateY = Math.min(
+            Math.max(gestureStartTranslateY.current + gestureState.dy, 0),
+            collapsedTranslateY,
           );
-          const midpoint = (collapsedHeight + expandedHeight) / 2;
+          const midpoint = collapsedTranslateY / 2;
           const shouldExpand =
             gestureState.vy < -0.5 ||
-            (gestureState.vy <= 0.5 && finalHeight > midpoint);
+            (gestureState.vy <= 0.5 && finalTranslateY < midpoint);
 
           setIsSheetExpanded(shouldExpand);
-          Animated.spring(sheetHeight, {
-            toValue: shouldExpand ? expandedHeight : collapsedHeight,
-            useNativeDriver: false,
+          Animated.spring(sheetTranslateY, {
+            toValue: shouldExpand ? 0 : collapsedTranslateY,
+            useNativeDriver: true,
             damping: 24,
             stiffness: 220,
           }).start();
         },
       }),
-    [collapsedHeight, expandedHeight, isSheetExpanded, sheetHeight],
+    [collapsedTranslateY, isSheetExpanded, sheetTranslateY],
   );
 
   function renderParking({ item }: { item: Parking }) {
@@ -138,9 +142,7 @@ export default function SearchResultsScreen() {
               <View style={styles.metaRow}>
                 <Text style={styles.metaText}>{item.distance}</Text>
                 <Text style={styles.metaDot}>•</Text>
-                <Text style={styles.metaText}>
-                  {item.spotsAvailable} spots
-                </Text>
+                <Text style={styles.metaText}>{item.spotsAvailable} spots</Text>
               </View>
             </View>
 
@@ -241,7 +243,10 @@ export default function SearchResultsScreen() {
       <Animated.View
         style={[
           styles.resultsPanel,
-          { height: sheetHeight },
+          {
+            top: expandedTop,
+            transform: [{ translateY: sheetTranslateY }],
+          },
           { paddingBottom: insets.bottom + theme.Spacing.sm },
         ]}
       >
@@ -373,7 +378,7 @@ const styles = StyleSheet.create({
     right: theme.Spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    zIndex: 2,
+    zIndex: 3,
   },
   iconButton: {
     width: 42,
@@ -424,6 +429,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 2,
     backgroundColor: theme.Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
