@@ -47,7 +47,9 @@ export default function ProfileScreen() {
     <ScreenWrapper>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topSection}>
-          <View style={styles.avatar} />
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>I</Text>
+          </View>
           <Text
             style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}
           >
@@ -171,9 +173,14 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: theme.Colors.surface,
+    backgroundColor: theme.Colors.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarText: {
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "700",
   },
   infoCard: { marginTop: theme.Spacing.sm },
   infoRow: {
