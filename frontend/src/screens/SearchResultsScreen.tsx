@@ -1,9 +1,9 @@
 import React from "react";
 import {
-  Alert,
   FlatList,
   Animated,
   PanResponder,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
+import Button from "../components/Button";
 import { Parking, useParking } from "../context/ParkingContext";
 import { getBookingDateSummary, getBookingHours } from "../utils/booking";
 import theme from "../theme";
@@ -42,6 +43,24 @@ const PIN_POSITIONS = [
 const TOP_BAR_HEIGHT = 52;
 const TOP_BAR_BOTTOM_GAP = 20;
 
+type ParkingTypeFilter = "all" | "public" | "private";
+type SortOption = "closest" | "lowest-price" | "most-available";
+
+const PARKING_TYPE_OPTIONS: Array<{
+  label: string;
+  value: ParkingTypeFilter;
+}> = [
+  { label: "All", value: "all" },
+  { label: "Public", value: "public" },
+  { label: "Private", value: "private" },
+];
+
+const SORT_OPTIONS: Array<{ label: string; value: SortOption }> = [
+  { label: "Closest", value: "closest" },
+  { label: "Lowest price", value: "lowest-price" },
+  { label: "Most available", value: "most-available" },
+];
+
 export default function SearchResultsScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProps>();
@@ -50,6 +69,10 @@ export default function SearchResultsScreen() {
   const { parkings } = useParking();
   const { booking } = route.params;
   const [isSheetExpanded, setIsSheetExpanded] = React.useState(false);
+  const [filtersVisible, setFiltersVisible] = React.useState(false);
+  const [parkingTypeFilter, setParkingTypeFilter] =
+    React.useState<ParkingTypeFilter>("all");
+  const [sortOption, setSortOption] = React.useState<SortOption>("closest");
   const collapsedHeight = windowHeight * 0.48;
   const headerTop = insets.top + theme.Spacing.sm;
   const expandedTop = insets.top + 96;
@@ -63,9 +86,29 @@ export default function SearchResultsScreen() {
   const gestureStartTranslateY = React.useRef(collapsedTranslateY);
   const durationHours = getBookingHours(booking);
   const dateSummary = getBookingDateSummary(booking);
-  const availableParkings = parkings.filter(
-    (parking) => parking.spotsAvailable > 0,
-  );
+  const availableParkings = React.useMemo(() => {
+    const filtered = parkings.filter((parking) => {
+      if (parking.spotsAvailable <= 0) {
+        return false;
+      }
+
+      const parkingType = parking.id === "2" ? "private" : "public";
+
+      return parkingTypeFilter === "all" || parkingType === parkingTypeFilter;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sortOption === "lowest-price") {
+        return a.price - b.price;
+      }
+
+      if (sortOption === "most-available") {
+        return b.spotsAvailable - a.spotsAvailable;
+      }
+
+      return Number.parseFloat(a.distance) - Number.parseFloat(b.distance);
+    });
+  }, [parkingTypeFilter, parkings, sortOption]);
 
   function goToDetails(parkingId: string) {
     navigation.navigate("ParkingDetails", {
@@ -228,7 +271,7 @@ export default function SearchResultsScreen() {
         </View>
 
         <Pressable
-          onPress={() => Alert.alert("Filters coming soon")}
+          onPress={() => setFiltersVisible(true)}
           style={styles.iconButton}
           accessibilityLabel="Filters"
         >
@@ -279,6 +322,77 @@ export default function SearchResultsScreen() {
           ]}
         />
       </Animated.View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={filtersVisible}
+        onRequestClose={() => setFiltersVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setFiltersVisible(false)}
+        >
+          <Pressable style={styles.filterModal}>
+            <View style={styles.filterHeader}>
+              <Text style={theme.Typography.title}>Filters</Text>
+              <Pressable
+                onPress={() => setFiltersVisible(false)}
+                style={styles.closeButton}
+                accessibilityLabel="Close filters"
+              >
+                <Text style={styles.closeText}>×</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.filterSectionTitle}>Parking type</Text>
+            <View style={styles.optionRow}>
+              {PARKING_TYPE_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setParkingTypeFilter(option.value)}
+                  style={[
+                    styles.optionChip,
+                    parkingTypeFilter === option.value &&
+                      styles.optionChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      parkingTypeFilter === option.value &&
+                        styles.optionTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.filterSectionTitle}>Sort by</Text>
+            {SORT_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                onPress={() => setSortOption(option.value)}
+                style={styles.sortRow}
+              >
+                <Text style={theme.Typography.body}>{option.label}</Text>
+                {sortOption === option.value ? (
+                  <Text style={styles.checkMark}>✓</Text>
+                ) : null}
+              </Pressable>
+            ))}
+
+            <View style={styles.filterActions}>
+              <Button
+                title="Apply filters"
+                onPress={() => setFiltersVisible(false)}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenWrapper>
   );
 }
@@ -535,5 +649,90 @@ const styles = StyleSheet.create({
   viewDetails: {
     color: theme.Colors.primary,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.32)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.Spacing.lg,
+  },
+  filterModal: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: theme.Colors.surface,
+    borderRadius: theme.Radius.lg,
+    padding: theme.Spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: theme.Spacing.md,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.Colors.background,
+  },
+  closeText: {
+    color: theme.Colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 24,
+  },
+  filterSectionTitle: {
+    ...theme.Typography.subtitle,
+    marginBottom: theme.Spacing.sm,
+    marginTop: theme.Spacing.sm,
+  },
+  optionRow: {
+    flexDirection: "row",
+    marginBottom: theme.Spacing.sm,
+  },
+  optionChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: theme.Spacing.sm,
+    borderRadius: theme.Radius.md,
+    borderWidth: 1,
+    borderColor: theme.Colors.border,
+    marginRight: theme.Spacing.sm,
+    backgroundColor: theme.Colors.background,
+  },
+  optionChipSelected: {
+    borderColor: theme.Colors.primary,
+    backgroundColor: "rgba(20,43,108,0.06)",
+  },
+  optionText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    fontWeight: "600",
+  },
+  optionTextSelected: {
+    color: theme.Colors.primary,
+  },
+  sortRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: theme.Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.Colors.border,
+  },
+  checkMark: {
+    color: theme.Colors.primary,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  filterActions: {
+    marginTop: theme.Spacing.md,
   },
 });
