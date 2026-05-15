@@ -5,50 +5,19 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
+import { Reservation, useParking } from "../context/ParkingContext";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Reservations">;
 
-const MOCK_RESERVATIONS = [
-  {
-    id: "r1",
-    name: "Central Parking",
-    address: "12 Main St",
-    date: "May 20, 2026",
-    duration: "2h",
-    price: 5.0,
-    status: "Active",
-  },
-  {
-    id: "r2",
-    name: "City Mall Garage",
-    address: "5 Commerce Ave",
-    date: "Jun 02, 2026",
-    duration: "4h",
-    price: 12.0,
-    status: "Upcoming",
-  },
-  {
-    id: "r3",
-    name: "East Side Parking",
-    address: "101 East Rd",
-    date: "Apr 10, 2026",
-    duration: "1.5h",
-    price: 3.75,
-    status: "Completed",
-  },
-];
-
 export default function ReservationsScreen() {
   const navigation = useNavigation<NavProp>();
-  const active = MOCK_RESERVATIONS.filter((r) => r.status === "Active");
-  const upcoming = MOCK_RESERVATIONS.filter((r) => r.status === "Upcoming");
+  const { reservations } = useParking();
+  const active = reservations.filter((r) => r.status === "Active");
+  const upcoming = reservations.filter((r) => r.status === "Upcoming");
 
-  function renderCard(
-    item: (typeof MOCK_RESERVATIONS)[number],
-    important = false,
-  ) {
+  function renderCard(item: Reservation, important = false) {
     const cardStyle = StyleSheet.flatten([
       styles.card,
       important ? styles.cardImportant : {},

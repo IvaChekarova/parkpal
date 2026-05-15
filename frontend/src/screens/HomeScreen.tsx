@@ -6,6 +6,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Input from "../components/Input";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
+import { Parking, useParking } from "../context/ParkingContext";
 // Try to load vector icons if available; fall back to emoji if not installed
 let Feather: any = null;
 try {
@@ -19,51 +20,19 @@ import type { RootStackParamList } from "../navigation/types";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
-const MOCK_PARKINGS = [
-  {
-    id: "1",
-    name: "Central Parking",
-    address: "12 Main St",
-    spots: 8,
-    price: 2.5,
-    distance: "0.3 km",
-    open: true,
-  },
-  {
-    id: "2",
-    name: "City Mall Garage",
-    address: "5 Commerce Ave",
-    spots: 2,
-    price: 3.0,
-    distance: "0.8 km",
-    open: true,
-  },
-  {
-    id: "3",
-    name: "East Side Parking",
-    address: "101 East Rd",
-    spots: 0,
-    price: 1.5,
-    distance: "1.2 km",
-    open: false,
-  },
-  {
-    id: "4",
-    name: "Riverside Lot",
-    address: "42 River Ln",
-    spots: 5,
-    price: 2.0,
-    distance: "2.0 km",
-    open: true,
-  },
-];
-
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const { parkings } = useParking();
 
-  function renderItem({ item }: { item: (typeof MOCK_PARKINGS)[number] }) {
+  function renderItem({ item }: { item: Parking }) {
+    const isOpen = item.spotsAvailable > 0;
+
     return (
-      <Pressable onPress={() => navigation.navigate("ParkingDetails")}>
+      <Pressable
+        onPress={() =>
+          navigation.navigate("ParkingDetails", { parkingId: item.id })
+        }
+      >
         <Card style={styles.parkingCard}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.titleCol}>
@@ -86,7 +55,7 @@ export default function HomeScreen() {
                 style={[
                   styles.statusChip,
                   {
-                    backgroundColor: item.open
+                    backgroundColor: isOpen
                       ? "rgba(89,165,117,0.12)"
                       : "rgba(2,6,23,0.06)",
                   },
@@ -96,7 +65,7 @@ export default function HomeScreen() {
                   style={[
                     styles.statusDotSmall,
                     {
-                      backgroundColor: item.open
+                      backgroundColor: isOpen
                         ? theme.Colors.secondaryGreen
                         : theme.Colors.border,
                     },
@@ -106,20 +75,20 @@ export default function HomeScreen() {
                   style={[
                     styles.statusText,
                     {
-                      color: item.open
+                      color: isOpen
                         ? theme.Colors.secondaryGreen
                         : theme.Colors.textSecondary,
                     },
                   ]}
                 >
-                  {item.open ? "Open" : "Full"}
+                  {isOpen ? "Open" : "Full"}
                 </Text>
               </View>
             </View>
           </View>
 
           <View style={styles.rowSpace}>
-            <Text style={styles.muted}>{item.spots} spots</Text>
+            <Text style={styles.muted}>{item.spotsAvailable} spots</Text>
             <Text style={styles.muted}>€{item.price.toFixed(2)}/hr</Text>
             <Text style={styles.muted}>{item.distance}</Text>
           </View>
@@ -169,7 +138,7 @@ export default function HomeScreen() {
       <SectionTitle>Nearby parking</SectionTitle>
 
       <FlatList
-        data={MOCK_PARKINGS}
+        data={parkings}
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
         ItemSeparatorComponent={() => (

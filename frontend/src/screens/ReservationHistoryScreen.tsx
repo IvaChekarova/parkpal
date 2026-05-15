@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
+import { useParking } from "../context/ParkingContext";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -12,29 +13,12 @@ type NavProp = NativeStackNavigationProp<
   "ReservationHistory"
 >;
 
-const COMPLETED_RESERVATIONS = [
-  {
-    id: "h1",
-    name: "East Side Parking",
-    address: "101 East Rd",
-    date: "Apr 10, 2026",
-    duration: "1.5h",
-    price: 3.75,
-    status: "Completed",
-  },
-  {
-    id: "h2",
-    name: "Riverside Lot",
-    address: "42 River Ln",
-    date: "Mar 18, 2026",
-    duration: "2h",
-    price: 4.0,
-    status: "Completed",
-  },
-];
-
 export default function ReservationHistoryScreen() {
   const navigation = useNavigation<NavProp>();
+  const { reservations } = useParking();
+  const completedReservations = reservations.filter(
+    (reservation) => reservation.status === "Completed",
+  );
 
   return (
     <ScreenWrapper>
@@ -50,7 +34,7 @@ export default function ReservationHistoryScreen() {
       </View>
 
       <FlatList
-        data={COMPLETED_RESERVATIONS}
+        data={completedReservations}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (

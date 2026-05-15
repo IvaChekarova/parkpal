@@ -1,39 +1,38 @@
 import React from "react";
 import { Text, StyleSheet, View, ScrollView, Pressable } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { useParking } from "../context/ParkingContext";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "ParkingDetails">;
-
-const FALLBACK = {
-  id: "1",
-  name: "Central Parking",
-  address: "12 Main St, Downtown",
-  spotsAvailable: 8,
-  totalSpots: 50,
-  price: 2.5,
-  distance: "0.3 km",
-  open: true,
-  hours: "Mon–Sun 06:00–23:00",
-  description:
-    "Secure parking close to downtown. Covered levels and easy pedestrian access.",
-  amenities: [
-    "Covered parking",
-    "Security cameras",
-    "EV charging",
-    "Easy access",
-  ],
-};
+type RouteProps = RouteProp<RootStackParamList, "ParkingDetails">;
 
 export default function ParkingDetailsScreen() {
   const navigation = useNavigation<NavProp>();
-  const route: any = useRoute();
-  const data = route.params?.parking ?? FALLBACK;
+  const route = useRoute<RouteProps>();
+  const { parkings, getParkingById } = useParking();
+  const routeParkingId = route.params?.parkingId;
+  const data = routeParkingId
+    ? (getParkingById(routeParkingId) ?? parkings[0])
+    : parkings[0];
+
+  if (!data) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.container}>
+          <Text style={theme.Typography.body}>Parking not available</Text>
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  const isOpen = data.spotsAvailable > 0;
 
   return (
     <ScreenWrapper>
@@ -94,7 +93,7 @@ export default function ParkingDetailsScreen() {
               style={[
                 styles.statusChip,
                 {
-                  backgroundColor: data.open
+                  backgroundColor: isOpen
                     ? "rgba(89,165,117,0.12)"
                     : "rgba(2,6,23,0.06)",
                 },
@@ -104,7 +103,7 @@ export default function ParkingDetailsScreen() {
                 style={[
                   styles.statusDot,
                   {
-                    backgroundColor: data.open
+                    backgroundColor: isOpen
                       ? theme.Colors.secondaryGreen
                       : theme.Colors.border,
                   },
@@ -114,13 +113,13 @@ export default function ParkingDetailsScreen() {
                 style={[
                   styles.statusLabel,
                   {
-                    color: data.open
+                    color: isOpen
                       ? theme.Colors.secondaryGreen
                       : theme.Colors.textSecondary,
                   },
                 ]}
               >
-                {data.open ? "Open" : "Full"}
+                {isOpen ? "Open" : "Full"}
               </Text>
             </View>
 
@@ -154,10 +153,12 @@ export default function ParkingDetailsScreen() {
         <View style={{ height: theme.Spacing.lg }} />
 
         <Button
-          title="Reserve spot"
+          title={isOpen ? "Reserve spot" : "No spots available"}
+          disabled={!isOpen}
           onPress={() =>
             navigation.navigate("ReservationConfirm", {
               parking: {
+                id: data.id,
                 name: data.name,
                 address: data.address,
                 pricePerHour: data.price,

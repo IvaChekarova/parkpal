@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { useParking } from "../context/ParkingContext";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -18,7 +19,9 @@ type RouteProps = RouteProp<RootStackParamList, "ReservationConfirm">;
 export default function ReservationConfirmScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProps>();
+  const { confirmReservation } = useParking();
   const parking = route.params?.parking ?? {
+    id: "1",
     name: "Central Parking",
     address: "12 Main St",
     pricePerHour: 2.5,
@@ -28,6 +31,7 @@ export default function ReservationConfirmScreen() {
   const estimated = parking.pricePerHour * durationHours;
 
   function handleConfirm() {
+    confirmReservation(parking.id);
     navigation.getParent()?.navigate("Reservations");
   }
 

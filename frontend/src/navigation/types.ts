@@ -6,14 +6,11 @@ export type RootStackParamList = {
   ParkingDetails:
     | undefined
     | {
-        parking?: {
-          name: string;
-          address: string;
-          price: number;
-        };
+        parkingId?: string;
       };
   ReservationConfirm: {
     parking: {
+      id: string;
       name: string;
       address: string;
       pricePerHour: number;
