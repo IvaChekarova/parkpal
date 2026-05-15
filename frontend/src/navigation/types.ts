@@ -1,12 +1,18 @@
+import type { BookingParams } from "../utils/booking";
+
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
   Home: undefined;
+  SearchResults: {
+    booking: BookingParams;
+  };
   ParkingDetails:
     | undefined
     | {
         parkingId?: string;
+        booking?: BookingParams;
       };
   ReservationConfirm: {
     parking: {
@@ -15,6 +21,7 @@ export type RootStackParamList = {
       address: string;
       pricePerHour: number;
     };
+    booking?: BookingParams;
   };
   Reservations: undefined;
   ReservationHistory: undefined;

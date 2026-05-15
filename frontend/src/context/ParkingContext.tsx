@@ -21,16 +21,24 @@ export type Reservation = {
   name: string;
   address: string;
   date: string;
+  time?: string;
   duration: string;
   price: number;
   status: ReservationStatus;
+};
+
+type ReservationInput = {
+  date: string;
+  time?: string;
+  duration: string;
+  durationHours: number;
 };
 
 type ParkingContextValue = {
   parkings: Parking[];
   reservations: Reservation[];
   getParkingById: (parkingId: string) => Parking | undefined;
-  confirmReservation: (parkingId: string) => void;
+  confirmReservation: (parkingId: string, input: ReservationInput) => void;
 };
 
 const MOCK_PARKINGS: Parking[] = [
@@ -146,23 +154,23 @@ export function ParkingProvider({ children }: { children: ReactNode }) {
     return parkings.find((parking) => parking.id === parkingId);
   }
 
-  function confirmReservation(parkingId: string) {
+  function confirmReservation(parkingId: string, input: ReservationInput) {
     const parking = getParkingById(parkingId);
 
     if (!parking || parking.spotsAvailable <= 0) {
       return;
     }
 
-    const durationHours = 1;
     const reservation: Reservation = {
       id: `r-${Date.now()}`,
       parkingId: parking.id,
       name: parking.name,
       address: parking.address,
-      date: "Today",
-      duration: "1h",
-      price: parking.price * durationHours,
-      status: "Active",
+      date: input.date,
+      time: input.time,
+      duration: input.duration,
+      price: parking.price * input.durationHours,
+      status: "Upcoming",
     };
 
     setReservations((current) => [reservation, ...current]);

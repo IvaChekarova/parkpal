@@ -7,6 +7,12 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import { useParking } from "../context/ParkingContext";
+import {
+  getBookingDateSummary,
+  getBookingHours,
+  getBookingSummaryLabel,
+  formatDuration,
+} from "../utils/booking";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -18,6 +24,7 @@ export default function ParkingDetailsScreen() {
   const route = useRoute<RouteProps>();
   const { parkings, getParkingById } = useParking();
   const routeParkingId = route.params?.parkingId;
+  const booking = route.params?.booking;
   const data = routeParkingId
     ? (getParkingById(routeParkingId) ?? parkings[0])
     : parkings[0];
@@ -33,6 +40,8 @@ export default function ParkingDetailsScreen() {
   }
 
   const isOpen = data.spotsAvailable > 0;
+  const durationHours = booking ? getBookingHours(booking) : 1;
+  const estimatedTotal = data.price * durationHours;
 
   return (
     <ScreenWrapper>
@@ -134,6 +143,36 @@ export default function ParkingDetailsScreen() {
 
         <View style={{ height: theme.Spacing.md }} />
 
+        {booking ? (
+          <>
+            <Text style={theme.Typography.subtitle}>
+              {getBookingSummaryLabel(booking)}
+            </Text>
+            <Card style={styles.bookingCard}>
+              <View style={styles.summaryRow}>
+                <Text style={theme.Typography.caption}>When</Text>
+                <Text style={theme.Typography.body}>
+                  {getBookingDateSummary(booking)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={theme.Typography.caption}>Duration</Text>
+                <Text style={theme.Typography.body}>
+                  {formatDuration(durationHours)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={theme.Typography.caption}>Estimated total</Text>
+                <Text style={theme.Typography.subtitle}>
+                  €{estimatedTotal.toFixed(2)}
+                </Text>
+              </View>
+            </Card>
+
+            <View style={{ height: theme.Spacing.md }} />
+          </>
+        ) : null}
+
         <Text style={theme.Typography.subtitle}>About</Text>
         <Text style={[theme.Typography.body, { marginTop: theme.Spacing.xs }]}>
           {data.description}
@@ -163,6 +202,7 @@ export default function ParkingDetailsScreen() {
                 address: data.address,
                 pricePerHour: data.price,
               },
+              booking,
             })
           }
         />
@@ -195,6 +235,15 @@ const styles = StyleSheet.create({
   },
   leftBlock: { flex: 1, paddingRight: theme.Spacing.sm },
   rightBlock: { width: 100, alignItems: "flex-end" },
+  bookingCard: {
+    marginTop: theme.Spacing.sm,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: theme.Spacing.sm,
+  },
   cardBottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",

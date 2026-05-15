@@ -62,7 +62,8 @@ export default function ReservationsScreen() {
 
         <View style={styles.rowBottom}>
           <Text style={styles.muted}>
-            {item.date} • {item.duration}
+            {item.date}
+            {item.time ? ` • ${item.time}` : ""} • {item.duration}
           </Text>
           <Text style={theme.Typography.subtitle}>
             €{item.price.toFixed(2)}

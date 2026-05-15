@@ -7,6 +7,7 @@ import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
 import ReservationHistoryScreen from "../screens/ReservationHistoryScreen";
 import ReservationsScreen from "../screens/ReservationsScreen";
+import SearchResultsScreen from "../screens/SearchResultsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import theme from "../theme";
 
@@ -29,6 +30,11 @@ function HomeStackScreen() {
       <HomeStack.Screen
         name="Home"
         component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="SearchResults"
+        component={SearchResultsScreen}
         options={{ headerShown: false }}
       />
       <HomeStack.Screen
