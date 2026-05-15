@@ -50,12 +50,8 @@ export default function ReservationConfirmScreen() {
   function handleConfirm() {
     confirmReservation(parking.id, {
       date: booking.date,
-      time:
-        booking.mode === "one-time"
-          ? `${booking.startTime}-${booking.endTime}`
-          : booking.toDate
-            ? `Until ${booking.toDate}`
-            : undefined,
+      startTime: booking.startTime ?? "00:00",
+      endTime: booking.endTime ?? "23:59",
       duration,
       durationHours,
     });

@@ -17,7 +17,7 @@ export default function ReservationHistoryScreen() {
   const navigation = useNavigation<NavProp>();
   const { reservations } = useParking();
   const completedReservations = reservations.filter(
-    (reservation) => reservation.status === "Completed",
+    (reservation) => reservation.status === "completed",
   );
 
   return (
@@ -55,7 +55,7 @@ export default function ReservationHistoryScreen() {
             <View style={styles.rowBottom}>
               <Text style={styles.muted}>
                 {item.date}
-                {item.time ? ` • ${item.time}` : ""} • {item.duration}
+                {` • ${item.startTime}-${item.endTime}`} • {item.duration}
               </Text>
               <Text style={theme.Typography.subtitle}>
                 €{item.price.toFixed(2)}
@@ -126,6 +126,7 @@ const styles = StyleSheet.create({
     color: theme.Colors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
+    textTransform: "capitalize",
   },
   empty: {
     alignItems: "center",

@@ -1,4 +1,11 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
+import { formatDate, formatTime } from "../utils/booking";
 
 export type Parking = {
   id: string;
@@ -13,7 +20,7 @@ export type Parking = {
   amenities: string[];
 };
 
-export type ReservationStatus = "Active" | "Upcoming" | "Completed";
+export type ReservationStatus = "active" | "upcoming" | "completed";
 
 export type Reservation = {
   id: string;
@@ -21,15 +28,18 @@ export type Reservation = {
   name: string;
   address: string;
   date: string;
-  time?: string;
+  startTime: string;
+  endTime: string;
   duration: string;
+  durationHours: number;
   price: number;
   status: ReservationStatus;
 };
 
 type ReservationInput = {
   date: string;
-  time?: string;
+  startTime: string;
+  endTime: string;
   duration: string;
   durationHours: number;
 };
@@ -105,42 +115,91 @@ const MOCK_RESERVATIONS: Reservation[] = [
     parkingId: "1",
     name: "Central Parking",
     address: "12 Main St",
-    date: "May 20, 2026",
+    date: formatDate(new Date()),
+    startTime: formatTime(new Date(Date.now() - 60 * 60 * 1000)),
+    endTime: formatTime(new Date(Date.now() + 60 * 60 * 1000)),
     duration: "2h",
+    durationHours: 2,
     price: 5,
-    status: "Active",
+    status: "active",
   },
   {
     id: "r2",
     parkingId: "2",
     name: "City Mall Garage",
     address: "5 Commerce Ave",
-    date: "Jun 02, 2026",
+    date: formatDate(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    startTime: "10:00",
+    endTime: "14:00",
     duration: "4h",
+    durationHours: 4,
     price: 12,
-    status: "Upcoming",
+    status: "upcoming",
   },
   {
     id: "r3",
     parkingId: "3",
     name: "East Side Parking",
     address: "101 East Rd",
-    date: "Apr 10, 2026",
+    date: formatDate(new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)),
+    startTime: "10:00",
+    endTime: "11:30",
     duration: "1.5h",
+    durationHours: 1.5,
     price: 3.75,
-    status: "Completed",
+    status: "completed",
   },
   {
     id: "r4",
     parkingId: "4",
     name: "Riverside Lot",
     address: "42 River Ln",
-    date: "Mar 18, 2026",
+    date: formatDate(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000)),
+    startTime: "12:00",
+    endTime: "14:00",
     duration: "2h",
+    durationHours: 2,
     price: 4,
-    status: "Completed",
+    status: "completed",
   },
 ];
+
+function parseReservationDateTime(date: string, time: string) {
+  const currentYear = new Date().getFullYear();
+  const normalizedDate =
+    date === "Today"
+      ? formatDate(new Date())
+      : date === "Tomorrow"
+        ? formatDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+        : date;
+  const dateWithYear = /\d{4}/.test(normalizedDate)
+    ? normalizedDate
+    : `${normalizedDate}, ${currentYear}`;
+  const parsed = new Date(`${dateWithYear} ${time}`);
+
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function getReservationStatus(reservation: Reservation): ReservationStatus {
+  const now = new Date();
+  const startsAt = parseReservationDateTime(
+    reservation.date,
+    reservation.startTime,
+  );
+  const endsAt = new Date(
+    startsAt.getTime() + reservation.durationHours * 60 * 60 * 1000,
+  );
+
+  if (now < startsAt) {
+    return "upcoming";
+  }
+
+  if (now <= endsAt) {
+    return "active";
+  }
+
+  return "completed";
+}
 
 const ParkingContext = createContext<ParkingContextValue | undefined>(
   undefined,
@@ -149,6 +208,14 @@ const ParkingContext = createContext<ParkingContextValue | undefined>(
 export function ParkingProvider({ children }: { children: ReactNode }) {
   const [parkings, setParkings] = useState(MOCK_PARKINGS);
   const [reservations, setReservations] = useState(MOCK_RESERVATIONS);
+  const reservationsWithStatus = useMemo(
+    () =>
+      reservations.map((reservation) => ({
+        ...reservation,
+        status: getReservationStatus(reservation),
+      })),
+    [reservations],
+  );
 
   function getParkingById(parkingId: string) {
     return parkings.find((parking) => parking.id === parkingId);
@@ -167,10 +234,12 @@ export function ParkingProvider({ children }: { children: ReactNode }) {
       name: parking.name,
       address: parking.address,
       date: input.date,
-      time: input.time,
+      startTime: input.startTime,
+      endTime: input.endTime,
       duration: input.duration,
+      durationHours: input.durationHours,
       price: parking.price * input.durationHours,
-      status: "Upcoming",
+      status: "upcoming",
     };
 
     setReservations((current) => [reservation, ...current]);
@@ -188,7 +257,12 @@ export function ParkingProvider({ children }: { children: ReactNode }) {
 
   return (
     <ParkingContext.Provider
-      value={{ parkings, reservations, getParkingById, confirmReservation }}
+      value={{
+        parkings,
+        reservations: reservationsWithStatus,
+        getParkingById,
+        confirmReservation,
+      }}
     >
       {children}
     </ParkingContext.Provider>

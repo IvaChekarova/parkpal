@@ -197,7 +197,7 @@ export default function HomeScreen() {
   return (
     <ScreenWrapper>
       <View style={styles.header}>
-        <Text style={theme.Typography.subtitle}>Good evening</Text>
+        <Text style={theme.Typography.subtitle}>Hello</Text>
         <Text style={[theme.Typography.title, { marginTop: theme.Spacing.xs }]}>
           Iva
         </Text>

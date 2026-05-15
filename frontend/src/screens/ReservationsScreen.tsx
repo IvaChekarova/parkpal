@@ -14,8 +14,14 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, "Reservations">;
 export default function ReservationsScreen() {
   const navigation = useNavigation<NavProp>();
   const { reservations } = useParking();
-  const active = reservations.filter((r) => r.status === "Active");
-  const upcoming = reservations.filter((r) => r.status === "Upcoming");
+  const active = reservations.filter((r) => r.status === "active");
+  const upcoming = reservations.filter((r) => r.status === "upcoming");
+  const completed = reservations.filter((r) => r.status === "completed");
+  const hasReservations = reservations.length > 0;
+
+  function getStatusLabel(status: Reservation["status"]) {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  }
 
   function renderCard(item: Reservation, important = false) {
     const cardStyle = StyleSheet.flatten([
@@ -41,20 +47,24 @@ export default function ReservationsScreen() {
             <View
               style={[
                 styles.statusChip,
-                item.status === "Active"
+                item.status === "active"
                   ? { backgroundColor: "rgba(89,165,117,0.12)" }
-                  : { backgroundColor: "rgba(59,130,246,0.08)" },
+                  : item.status === "upcoming"
+                    ? { backgroundColor: "rgba(59,130,246,0.08)" }
+                    : { backgroundColor: "rgba(2,6,23,0.06)" },
               ]}
             >
               <Text
                 style={[
                   styles.statusText,
-                  item.status === "Active"
+                  item.status === "active"
                     ? { color: theme.Colors.secondaryGreen }
-                    : { color: "#3b82f6" },
+                    : item.status === "upcoming"
+                      ? { color: "#3b82f6" }
+                      : { color: theme.Colors.textSecondary },
                 ]}
               >
-                {item.status}
+                {getStatusLabel(item.status)}
               </Text>
             </View>
           </View>
@@ -62,8 +72,7 @@ export default function ReservationsScreen() {
 
         <View style={styles.rowBottom}>
           <Text style={styles.muted}>
-            {item.date}
-            {item.time ? ` • ${item.time}` : ""} • {item.duration}
+            {item.date} • {item.startTime}-{item.endTime} • {item.duration}
           </Text>
           <Text style={theme.Typography.subtitle}>
             €{item.price.toFixed(2)}
@@ -105,7 +114,20 @@ export default function ReservationsScreen() {
             </View>
           ))}
         </View>
-      ) : (
+      ) : null}
+
+      {completed.length > 0 ? (
+        <View style={{ marginTop: theme.Spacing.md }}>
+          <Text style={styles.sectionTitle}>Completed</Text>
+          {completed.slice(0, 2).map((r) => (
+            <View key={r.id} style={{ marginBottom: theme.Spacing.sm }}>
+              {renderCard(r)}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {!hasReservations ? (
         <FlatList
           data={[]}
           renderItem={() => null}
@@ -120,7 +142,7 @@ export default function ReservationsScreen() {
             </View>
           )}
         />
-      )}
+      ) : null}
     </ScreenWrapper>
   );
 }
