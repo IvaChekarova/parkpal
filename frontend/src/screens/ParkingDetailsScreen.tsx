@@ -1,5 +1,12 @@
 import React from "react";
-import { Text, StyleSheet, View, ScrollView, Pressable } from "react-native";
+import {
+  ActivityIndicator,
+  Text,
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+} from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenWrapper from "../components/ScreenWrapper";
@@ -7,33 +14,85 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import theme from "../theme";
 import type { RootStackParamList } from "../navigation/types";
+import { parkingApi, ParkingDetails } from "../services/parkingApi";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "ParkingDetails">;
-
-const FALLBACK = {
-  id: "1",
-  name: "Central Parking",
-  address: "12 Main St, Downtown",
-  spotsAvailable: 8,
-  totalSpots: 50,
-  price: 2.5,
-  distance: "0.3 km",
-  open: true,
-  hours: "Mon–Sun 06:00–23:00",
-  description:
-    "Secure parking close to downtown. Covered levels and easy pedestrian access.",
-  amenities: [
-    "Covered parking",
-    "Security cameras",
-    "EV charging",
-    "Easy access",
-  ],
-};
 
 export default function ParkingDetailsScreen() {
   const navigation = useNavigation<NavProp>();
   const route: any = useRoute();
-  const data = route.params?.parking ?? FALLBACK;
+  const parkingId = route.params?.parkingId;
+  const legacyParking = route.params?.parking;
+  const [parking, setParking] = React.useState<ParkingDetails | null>(null);
+  const [isLoading, setIsLoading] = React.useState(Boolean(parkingId));
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => {
+    if (!parkingId) return;
+
+    let isMounted = true;
+
+    const loadParking = async () => {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const result = await parkingApi.getParkingById(parkingId);
+
+        if (isMounted) {
+          setParking(result);
+        }
+      } catch (_err) {
+        if (isMounted) {
+          setError("Unable to load parking details. Please try again.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadParking();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [parkingId]);
+
+  const data = parking
+    ? {
+        name: parking.name,
+        address: `${parking.address}, ${parking.city}`,
+        spotsAvailable: parking.availableSpots,
+        totalSpots: parking.totalSpots,
+        price: parking.pricePerHour,
+        distance: parking.city,
+        open: parking.availableSpots > 0,
+        hours: "Open daily",
+        description:
+          parking.description ??
+          "Convenient ParkPal parking with real-time spot availability.",
+        amenities:
+          parking.parkingType === "PRIVATE"
+            ? ["Private parking", "Limited access", "Verified location"]
+            : ["Public parking", "Easy access", "Verified location"],
+      }
+    : legacyParking
+      ? {
+          name: legacyParking.name,
+          address: legacyParking.address,
+          spotsAvailable: 0,
+          totalSpots: 0,
+          price: legacyParking.price,
+          distance: "",
+          open: true,
+          hours: "Open daily",
+          description:
+            "Convenient ParkPal parking with real-time spot availability.",
+          amenities: ["Verified location", "Easy access"],
+        }
+      : null;
 
   return (
     <ScreenWrapper>
@@ -48,21 +107,37 @@ export default function ParkingDetailsScreen() {
           </Pressable>
         </View>
 
-        <Text
-          style={theme.Typography.title}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
-          {data.name}
-        </Text>
+        {isLoading ? (
+          <View style={styles.stateContainer}>
+            <ActivityIndicator color={theme.Colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={styles.stateContainer}>
+            <Text style={styles.stateText}>{error}</Text>
+            <View style={{ height: theme.Spacing.md }} />
+            <Button title="Go back" variant="outline" onPress={navigation.goBack} />
+          </View>
+        ) : !data ? (
+          <View style={styles.stateContainer}>
+            <Text style={styles.stateText}>Parking location not found</Text>
+          </View>
+        ) : (
+          <>
+            <Text
+              style={theme.Typography.title}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {data.name}
+            </Text>
 
-        <Text
-          style={[theme.Typography.body, styles.address]}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
-          {data.address}
-        </Text>
+            <Text
+              style={[theme.Typography.body, styles.address]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {data.address}
+            </Text>
 
         <View style={{ height: theme.Spacing.md }} />
 
@@ -166,7 +241,9 @@ export default function ParkingDetailsScreen() {
           }
         />
 
-        <View style={{ height: theme.Spacing.xl }} />
+            <View style={{ height: theme.Spacing.xl }} />
+          </>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
@@ -229,4 +306,14 @@ const styles = StyleSheet.create({
   },
   amenityText: { ...theme.Typography.caption, color: theme.Colors.textPrimary },
   muted: { color: theme.Colors.textSecondary },
+  stateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.Spacing.xl,
+  },
+  stateText: {
+    ...theme.Typography.body,
+    color: theme.Colors.textSecondary,
+    textAlign: "center",
+  },
 });

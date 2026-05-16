@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
+import SearchResultsScreen from "../screens/SearchResultsScreen";
 import ReservationHistoryScreen from "../screens/ReservationHistoryScreen";
 import ReservationsScreen from "../screens/ReservationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -34,6 +35,11 @@ function HomeStackScreen() {
       <HomeStack.Screen
         name="ParkingDetails"
         component={ParkingDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="SearchResults"
+        component={SearchResultsScreen}
         options={{ headerShown: false }}
       />
       <HomeStack.Screen
