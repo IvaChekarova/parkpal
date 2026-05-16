@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum ParkingType {
+  PUBLIC
+  PRIVATE
+}
+
+enum ParkingSpotStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  OUT_OF_SERVICE
+}
+
+enum ReservationType {
+  ONE_TIME
+  LONG_TERM
+}
+
+enum ReservationStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  APPLE_PAY
+  GOOGLE_PAY
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DeviceType {
+  SENSOR
+  CAMERA
+  GATE_CONTROLLER
+}
+
+enum SensorReadingType {
+  OCCUPANCY
+  DISTANCE
+  BATTERY
+  HEARTBEAT
+}
+
+enum DetectedStatus {
+  AVAILABLE
+  OCCUPIED
+  UNKNOWN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  phoneNumber  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parkingLocations ParkingLocation[]
+  reservations     Reservation[]
+  payments         Payment[]
+}
+
+model ParkingLocation {
+  id           String      @id @default(cuid())
+  ownerId      String
+  name         String
+  description  String?
+  address      String
+  city         String
+  latitude     Decimal     @db.Decimal(9, 6)
+  longitude    Decimal     @db.Decimal(9, 6)
+  parkingType  ParkingType
+  pricePerHour Decimal     @db.Decimal(10, 2)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parkingSpots ParkingSpot[]
+  reservations Reservation[]
+  devices      Device[]
+
+  @@index([ownerId])
+  @@index([city])
+  @@index([parkingType])
+}
+
+model ParkingSpot {
+  id                String            @id @default(cuid())
+  parkingLocationId String
+  spotNumber        String
+  status            ParkingSpotStatus @default(AVAILABLE)
+  isAvailable       Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  parkingLocation ParkingLocation @relation(fields: [parkingLocationId], references: [id], onDelete: Cascade)
+  reservations    Reservation[]
+  devices         Device[]
+  sensorReadings  SensorReading[]
+
+  @@unique([parkingLocationId, spotNumber])
+  @@index([parkingLocationId])
+  @@index([status])
+}
+
+model Reservation {
+  id                String            @id @default(cuid())
+  userId            String
+  parkingLocationId String
+  parkingSpotId     String
+  reservationType   ReservationType
+  startTime         DateTime
+  endTime           DateTime
+  durationMinutes   Int
+  totalPrice        Decimal           @db.Decimal(10, 2)
+  status            ReservationStatus @default(UPCOMING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parkingLocation ParkingLocation @relation(fields: [parkingLocationId], references: [id], onDelete: Cascade)
+  parkingSpot     ParkingSpot     @relation(fields: [parkingSpotId], references: [id], onDelete: Restrict)
+  payment         Payment?
+
+  @@index([userId])
+  @@index([parkingLocationId])
+  @@index([parkingSpotId])
+  @@index([status])
+  @@index([startTime, endTime])
+}
+
+model Payment {
+  id                   String        @id @default(cuid())
+  reservationId        String        @unique
+  userId               String
+  amount               Decimal       @db.Decimal(10, 2)
+  currency             String        @default("EUR")
+  paymentMethod        PaymentMethod
+  paymentStatus        PaymentStatus @default(PENDING)
+  transactionReference String?       @unique
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([paymentStatus])
+}
+
+model Device {
+  id                String     @id @default(cuid())
+  parkingLocationId String
+  parkingSpotId     String?
+  deviceName        String
+  deviceType        DeviceType
+  deviceIdentifier  String     @unique
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  parkingLocation ParkingLocation @relation(fields: [parkingLocationId], references: [id], onDelete: Cascade)
+  parkingSpot     ParkingSpot?    @relation(fields: [parkingSpotId], references: [id], onDelete: SetNull)
+  sensorReadings  SensorReading[]
+
+  @@index([parkingLocationId])
+  @@index([parkingSpotId])
+  @@index([deviceType])
+}
+
+model SensorReading {
+  id             String            @id @default(cuid())
+  deviceId       String
+  parkingSpotId  String
+  readingType    SensorReadingType
+  value          Decimal?          @db.Decimal(10, 2)
+  detectedStatus DetectedStatus
+  createdAt      DateTime          @default(now())
+
+  device      Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  parkingSpot ParkingSpot @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@index([parkingSpotId])
+  @@index([createdAt])
+}
