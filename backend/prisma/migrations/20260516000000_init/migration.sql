@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('USER', 'OWNER', 'ADMIN');
+CREATE TYPE "UserRole" AS ENUM ('DRIVER', 'OWNER', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "ParkingType" AS ENUM ('PUBLIC', 'PRIVATE');
@@ -37,7 +37,7 @@ CREATE TABLE "User" (
     "fullName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL DEFAULT 'USER',
+    "role" "UserRole" NOT NULL DEFAULT 'DRIVER',
     "phoneNumber" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
