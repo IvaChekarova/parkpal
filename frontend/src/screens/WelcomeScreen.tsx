@@ -17,6 +17,7 @@ import Logo from "../components/Logo";
 import type { RootStackParamList } from "../navigation/types";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { getAuthErrorMessage } from "../services/authApi";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -25,8 +26,28 @@ export default function WelcomeScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
+
+  const handleLogin = async () => {
+    if (!canSubmit || isLoading) return;
+
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await login({
+        email: email.trim(),
+        password,
+      });
+    } catch (err) {
+      setError(getAuthErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <ScreenWrapper>
@@ -66,15 +87,16 @@ export default function WelcomeScreen() {
               <View style={{ height: theme.Spacing.sm }} />
 
               <Button
-                title="Log In"
-                onPress={() => {
-                  if (canSubmit) login();
-                }}
+                title={isLoading ? "Logging in..." : "Log In"}
+                disabled={!canSubmit || isLoading}
+                onPress={handleLogin}
                 style={{
                   borderRadius: theme.Radius.lg,
                   paddingVertical: theme.Spacing.md,
                 }}
               />
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <View style={{ height: theme.Spacing.md }} />
 
@@ -90,7 +112,7 @@ export default function WelcomeScreen() {
                 title="Continue with Google"
                 variant="outline"
                 onPress={() => {
-                  login();
+                  setError("Google login is not available yet.");
                 }}
                 style={{
                   borderRadius: theme.Radius.lg,
@@ -153,4 +175,10 @@ const styles = StyleSheet.create({
   },
   bottomText: { color: theme.Colors.textSecondary },
   registerLink: { color: theme.Colors.primary, fontWeight: "600" },
+  errorText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.error,
+    marginTop: theme.Spacing.sm,
+    textAlign: "center",
+  },
 });
