@@ -1,0 +1,13 @@
+name,address,city,latitude,longitude,parkingType,pricePerHour,totalSpots,source
+Parking Beko,Boulevard Goce Delcev,Skopje,41.9981,21.4362,PUBLIC,0.65,180,Official public parking reference + mock availability/capacity
+Parking Zelen Pazar,11 Oktomvri,Skopje,41.9928,21.4317,PUBLIC,0.6,120,Official public parking reference + mock availability/capacity
+Parking City Gallery,Kej 13 Noemvri,Skopje,41.9969,21.4315,PUBLIC,0.7,140,Official public parking reference + mock availability/capacity
+Parking Capitol Mall,Jane Sandanski,Skopje,41.9877,21.4697,PUBLIC,0.8,220,Commercial parking reference + mock availability/capacity
+Parking Ramstore Mall,Sv. Kiril i Metodij,Skopje,41.9897,21.4252,PUBLIC,0.75,200,Commercial parking reference + mock availability/capacity
+Parking East Gate Mall,Belasica,Skopje,41.9995,21.4659,PUBLIC,0.9,500,Commercial parking reference + mock availability/capacity
+Parking Skopje City Mall,Ljubljanska,Skopje,42.0058,21.3925,PUBLIC,0.85,350,Commercial parking reference + mock availability/capacity
+Parking TC Biser,Jane Sandanski,Skopje,41.986,21.4668,PUBLIC,0.55,90,Commercial parking reference + mock availability/capacity
+Private Garage Debar Maalo,Orce Nikolov,Skopje,42.0017,21.4178,PRIVATE,1.2,20,Mock private parking
+Private Parking Karposh,Partizanski Odredi,Skopje,42.005,21.39,PRIVATE,1.0,35,Mock private parking
+Private Spot Aerodrom,Vasil Gjorgov,Skopje,41.9835,21.469,PRIVATE,0.95,28,Mock private parking
+Private Garage Centar,Dame Gruev,Skopje,41.9948,21.4259,PRIVATE,1.1,18,Mock private parking
