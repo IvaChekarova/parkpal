@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import {
+  cancelReservation,
   createReservation,
   getMyReservations,
   getReservationById,
@@ -58,6 +59,25 @@ export const getReservationDetailsHandler = async (
     }
 
     const reservation = await getReservationById(req.userId, id);
+    return res.status(200).json({ reservation });
+  } catch (error) {
+    return handleReservationError(error, res);
+  }
+};
+
+export const cancelReservationHandler = async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Authentication token is required" });
+    }
+
+    const id = req.params.id;
+
+    if (!id || Array.isArray(id)) {
+      return res.status(400).json({ message: "Reservation id is required" });
+    }
+
+    const reservation = await cancelReservation(req.userId, id);
     return res.status(200).json({ reservation });
   } catch (error) {
     return handleReservationError(error, res);

@@ -26,6 +26,8 @@ const FALLBACK_WORKING_HOURS = {
 const ONE_MINUTE_MS = 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+const ONE_TIME_CANCELLATION_WINDOW_MS = 30 * 60 * 1000;
+const LONG_TERM_CANCELLATION_WINDOW_MS = ONE_DAY_MS;
 const BOOKABLE_STATUSES = [
   ReservationStatus.ACTIVE,
   ReservationStatus.UPCOMING,
@@ -381,4 +383,79 @@ export const getReservationById = async (userId: string, id: string) => {
   }
 
   return formatReservation(reservation);
+};
+
+export const cancelReservation = async (userId: string, id: string) => {
+  if (!id?.trim()) {
+    throw new ReservationError("Reservation id is required", 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.findUnique({
+      where: { id },
+      include: {
+        parkingLocation: true,
+        parkingSpot: true,
+      },
+    });
+
+    if (!reservation) {
+      throw new ReservationError("Reservation not found", 404);
+    }
+
+    if (reservation.userId !== userId) {
+      throw new ReservationError("Forbidden", 403);
+    }
+
+    const currentStatus = normalizeReservationStatus(reservation);
+
+    if (currentStatus !== ReservationStatus.UPCOMING) {
+      throw new ReservationError(
+        "Only upcoming reservations can be cancelled.",
+        409
+      );
+    }
+
+    const now = new Date();
+    const cancellationWindowMs =
+      reservation.reservationType === ReservationType.LONG_TERM
+        ? LONG_TERM_CANCELLATION_WINDOW_MS
+        : ONE_TIME_CANCELLATION_WINDOW_MS;
+
+    if (reservation.startTime.getTime() - now.getTime() < cancellationWindowMs) {
+      throw new ReservationError(
+        "Cancellation is no longer available for this reservation.",
+        409
+      );
+    }
+
+    const cancelledReservation = await tx.reservation.update({
+      where: { id },
+      data: { status: ReservationStatus.CANCELLED },
+      include: {
+        parkingLocation: true,
+        parkingSpot: true,
+      },
+    });
+
+    const activeSpotReservations = await tx.reservation.count({
+      where: {
+        parkingSpotId: reservation.parkingSpotId,
+        id: { not: id },
+        status: { in: BOOKABLE_STATUSES },
+      },
+    });
+
+    if (activeSpotReservations === 0) {
+      await tx.parkingSpot.update({
+        where: { id: reservation.parkingSpotId },
+        data: {
+          status: ParkingSpotStatus.AVAILABLE,
+          isAvailable: true,
+        },
+      });
+    }
+
+    return formatReservation(cancelledReservation);
+  });
 };
