@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import authRoutes from "./auth.routes";
 import healthRoutes from "./healthRoutes";
+import iotRoutes from "./iot.routes";
 import parkingRoutes from "./parking.routes";
 import reservationRoutes from "./reservation.routes";
 
@@ -9,6 +10,7 @@ const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/health", healthRoutes);
+router.use("/iot", iotRoutes);
 router.use("/parkings", parkingRoutes);
 router.use("/reservations", reservationRoutes);
 

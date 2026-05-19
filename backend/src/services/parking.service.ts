@@ -16,7 +16,11 @@ type ParkingSummaryRow = {
   longitude: unknown;
   parkingType: ParkingType;
   pricePerHour: unknown;
-  parkingSpots: { id: string }[];
+  parkingSpots: {
+    id: string;
+    status: ParkingSpotStatus;
+    isAvailable: boolean;
+  }[];
   _count: { parkingSpots: number };
 };
 
@@ -49,9 +53,46 @@ const getLocationSearchFilter = (location?: string) => {
   };
 };
 
+export const getAvailabilitySummary = (
+  spots: { status: ParkingSpotStatus; isAvailable: boolean }[]
+) => {
+  const totalSpots = spots.length;
+  const availableSpots = spots.filter(
+    (spot) => spot.status === ParkingSpotStatus.AVAILABLE && spot.isAvailable
+  ).length;
+  const occupiedSpots = spots.filter(
+    (spot) => spot.status === ParkingSpotStatus.OCCUPIED
+  ).length;
+  const reservedSpots = spots.filter(
+    (spot) => spot.status === ParkingSpotStatus.RESERVED
+  ).length;
+  const outOfServiceSpots = spots.filter(
+    (spot) => spot.status === ParkingSpotStatus.OUT_OF_SERVICE
+  ).length;
+  const occupancyPercentage =
+    totalSpots > 0
+      ? Math.round(((totalSpots - availableSpots) / totalSpots) * 100)
+      : 0;
+  const availabilityStatus =
+    availableSpots === 0
+      ? "FULL"
+      : occupancyPercentage >= 80
+        ? "LIMITED"
+        : "AVAILABLE";
+
+  return {
+    totalSpots,
+    availableSpots,
+    occupiedSpots,
+    reservedSpots,
+    outOfServiceSpots,
+    occupancyPercentage,
+    availabilityStatus,
+  };
+};
+
 const mapParkingSummary = (parking: ParkingSummaryRow) => {
-  const totalSpots = parking._count.parkingSpots;
-  const availableSpots = parking.parkingSpots.length;
+  const availability = getAvailabilitySummary(parking.parkingSpots);
 
   return {
     id: parking.id,
@@ -62,8 +103,11 @@ const mapParkingSummary = (parking: ParkingSummaryRow) => {
     longitude: Number(parking.longitude),
     parkingType: parking.parkingType,
     pricePerHour: Number(parking.pricePerHour),
-    totalSpots,
-    availableSpots,
+    totalSpots: availability.totalSpots,
+    availableSpots: availability.availableSpots,
+    occupiedSpots: availability.occupiedSpots,
+    occupancyPercentage: availability.occupancyPercentage,
+    availabilityStatus: availability.availabilityStatus,
   };
 };
 
@@ -96,11 +140,7 @@ const getParkingRows = async (params: ParkingSearchParams = {}) => {
     orderBy: [{ city: "asc" }, { name: "asc" }],
     include: {
       parkingSpots: {
-        where: {
-          status: ParkingSpotStatus.AVAILABLE,
-          isAvailable: true,
-        },
-        select: { id: true },
+        select: { id: true, status: true, isAvailable: true },
       },
       _count: {
         select: { parkingSpots: true },
@@ -142,18 +182,7 @@ export const getParkingById = async (id: string) => {
     throw new ParkingError("Parking location not found", 404);
   }
 
-  const availableSpots = parking.parkingSpots.filter(
-    (spot) => spot.status === ParkingSpotStatus.AVAILABLE && spot.isAvailable
-  ).length;
-  const occupiedSpots = parking.parkingSpots.filter(
-    (spot) => spot.status === ParkingSpotStatus.OCCUPIED
-  ).length;
-  const reservedSpots = parking.parkingSpots.filter(
-    (spot) => spot.status === ParkingSpotStatus.RESERVED
-  ).length;
-  const outOfServiceSpots = parking.parkingSpots.filter(
-    (spot) => spot.status === ParkingSpotStatus.OUT_OF_SERVICE
-  ).length;
+  const availability = getAvailabilitySummary(parking.parkingSpots);
 
   return {
     id: parking.id,
@@ -165,13 +194,16 @@ export const getParkingById = async (id: string) => {
     longitude: Number(parking.longitude),
     parkingType: parking.parkingType,
     pricePerHour: Number(parking.pricePerHour),
-    totalSpots: parking.parkingSpots.length,
-    availableSpots,
+    totalSpots: availability.totalSpots,
+    availableSpots: availability.availableSpots,
+    occupiedSpots: availability.occupiedSpots,
+    occupancyPercentage: availability.occupancyPercentage,
+    availabilityStatus: availability.availabilityStatus,
     availabilitySummary: {
-      available: availableSpots,
-      occupied: occupiedSpots,
-      reserved: reservedSpots,
-      outOfService: outOfServiceSpots,
+      available: availability.availableSpots,
+      occupied: availability.occupiedSpots,
+      reserved: availability.reservedSpots,
+      outOfService: availability.outOfServiceSpots,
     },
     spots: parking.parkingSpots,
   };
