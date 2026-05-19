@@ -7,6 +7,7 @@ import {
   Pressable,
   Alert,
   Modal,
+  Switch,
 } from "react-native";
 import ScreenWrapper from "../components/ScreenWrapper";
 import theme from "../theme";
@@ -15,10 +16,39 @@ import Button from "../components/Button";
 import SectionTitle from "../components/SectionTitle";
 import Card from "../components/Card";
 
+type ModalType = "language" | "currency" | "notifications" | "support" | "privacy" | null;
+
+const languages = ["English", "Македонски"];
+const currencies = ["EUR", "MKD", "USD"];
+
+const formatRole = (role?: string) => {
+  if (!role) return "Driver";
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+};
+
+const formatMemberSince = (createdAt?: string) => {
+  if (!createdAt) return "Not available";
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const getInitial = (name?: string | null) => {
+  return name?.trim().charAt(0).toUpperCase() || "P";
+};
+
 export default function ProfileScreen() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [language, setLanguage] = React.useState("English");
-  const [languageModalVisible, setLanguageModalVisible] = React.useState(false);
+  const [currency, setCurrency] = React.useState("EUR");
+  const [activeModal, setActiveModal] = React.useState<ModalType>(null);
+  const [reservationReminders, setReservationReminders] = React.useState(true);
+  const [availabilityUpdates, setAvailabilityUpdates] = React.useState(false);
 
   const handleLogout = () => {
     Alert.alert("Log out", "Are you sure you want to log out?", [
@@ -28,52 +58,55 @@ export default function ProfileScreen() {
   };
 
   const accountInfo = [
-    { key: "Member since", value: "Jan 2024" },
-    { key: "Total reservations", value: "3" },
-    { key: "Favorite area", value: "Downtown" },
+    { key: "Role", value: formatRole(user?.role) },
+    { key: "Member since", value: formatMemberSince(user?.createdAt) },
   ];
 
   const actions = [
     { key: "Reservation history" },
-    { key: "Language", value: language },
-    { key: "Notifications" },
-    { key: "Support" },
-    { key: "Privacy & Terms" },
+    { key: "Language", value: language, modal: "language" as const },
+    { key: "Currency", value: currency, modal: "currency" as const },
+    { key: "Notifications", modal: "notifications" as const },
+    { key: "Support", modal: "support" as const },
+    { key: "Privacy & Terms", modal: "privacy" as const },
   ];
 
-  const languages = ["English", "Македонски"];
+  const handleActionPress = (action: (typeof actions)[number]) => {
+    if (action.modal) {
+      setActiveModal(action.modal);
+      return;
+    }
+
+    Alert.alert(action.key);
+  };
 
   return (
     <ScreenWrapper>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>I</Text>
+            <Text style={styles.avatarText}>{getInitial(user?.fullName)}</Text>
           </View>
           <Text
             style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}
           >
-            Iva Chekarova
+            {user?.fullName ?? "ParkPal user"}
           </Text>
-          <Text
-            style={[
-              theme.Typography.caption,
-              {
-                color: theme.Colors.textSecondary,
-                marginTop: theme.Spacing.xs,
-              },
-            ]}
-          >
-            iva@example.com
-          </Text>
+          <Text style={styles.emailText}>{user?.email ?? "Signed in"}</Text>
         </View>
 
         <View style={{ height: theme.Spacing.md }} />
 
         <SectionTitle>Account info</SectionTitle>
         <Card style={styles.infoCard}>
-          {accountInfo.map((row) => (
-            <View key={row.key} style={styles.infoRow}>
+          {accountInfo.map((row, index) => (
+            <View
+              key={row.key}
+              style={[
+                styles.infoRow,
+                index === accountInfo.length - 1 && styles.lastRow,
+              ]}
+            >
               <Text style={theme.Typography.caption}>{row.key}</Text>
               <Text style={theme.Typography.body}>{row.value}</Text>
             </View>
@@ -84,23 +117,19 @@ export default function ProfileScreen() {
 
         <SectionTitle>Actions</SectionTitle>
         <Card style={styles.actionsCard}>
-          {actions.map((a) => (
+          {actions.map((action) => (
             <Pressable
-              key={a.key}
-              onPress={() =>
-                a.key === "Language"
-                  ? setLanguageModalVisible(true)
-                  : Alert.alert(a.key)
-              }
+              key={action.key}
+              onPress={() => handleActionPress(action)}
               style={({ pressed }) => [
                 styles.actionRow,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={theme.Typography.body}>{a.key}</Text>
+              <Text style={theme.Typography.body}>{action.key}</Text>
               <View style={styles.actionRight}>
-                {a.value ? (
-                  <Text style={styles.actionValue}>{a.value}</Text>
+                {action.value ? (
+                  <Text style={styles.actionValue}>{action.value}</Text>
                 ) : null}
                 <Text style={styles.chev}>›</Text>
               </View>
@@ -115,54 +144,211 @@ export default function ProfileScreen() {
         <View style={{ height: theme.Spacing.xl }} />
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={languageModalVisible}
-        onRequestClose={() => setLanguageModalVisible(false)}
+      <CenteredModal
+        visible={activeModal === "language"}
+        onClose={() => setActiveModal(null)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setLanguageModalVisible(false)}
-        >
-          <Pressable style={styles.languageModal}>
-            <Text style={styles.modalTitle}>Select language</Text>
-            <View style={{ height: theme.Spacing.md }} />
+        <Text style={styles.modalTitle}>Select language</Text>
+        <View style={{ height: theme.Spacing.md }} />
+        {languages.map((item) => (
+          <SelectionRow
+            key={item}
+            label={item}
+            selected={language === item}
+            onPress={() => {
+              setLanguage(item);
+              setActiveModal(null);
+            }}
+          />
+        ))}
+        <ModalCloseButton onPress={() => setActiveModal(null)} />
+      </CenteredModal>
 
-            {languages.map((item) => (
-              <Pressable
-                key={item}
-                onPress={() => {
-                  setLanguage(item);
-                  setLanguageModalVisible(false);
-                }}
-                style={({ pressed }) => [
-                  styles.languageOption,
-                  language === item && styles.languageOptionSelected,
-                  pressed && { opacity: 0.75 },
-                ]}
-              >
-                <Text style={theme.Typography.body}>{item}</Text>
-                {language === item ? (
-                  <Text style={styles.selectedMark}>✓</Text>
-                ) : null}
-              </Pressable>
-            ))}
+      <CenteredModal
+        visible={activeModal === "currency"}
+        onClose={() => setActiveModal(null)}
+      >
+        <Text style={styles.modalTitle}>Select currency</Text>
+        <Text style={styles.modalBody}>
+          Currency preference is local for now. Prices are not converted yet.
+        </Text>
+        {currencies.map((item) => (
+          <SelectionRow
+            key={item}
+            label={item}
+            selected={currency === item}
+            onPress={() => {
+              setCurrency(item);
+              setActiveModal(null);
+            }}
+          />
+        ))}
+        <ModalCloseButton onPress={() => setActiveModal(null)} />
+      </CenteredModal>
 
-            <View style={styles.modalDivider} />
-            <Pressable
-              onPress={() => setLanguageModalVisible(false)}
-              style={({ pressed }) => [
-                styles.cancelButton,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <CenteredModal
+        visible={activeModal === "notifications"}
+        onClose={() => setActiveModal(null)}
+      >
+        <Text style={styles.modalTitle}>Notifications</Text>
+        <Text style={styles.modalBody}>
+          Manage local notification preferences for ParkPal updates.
+        </Text>
+        <ToggleRow
+          label="Reservation reminders"
+          value={reservationReminders}
+          onValueChange={setReservationReminders}
+        />
+        <ToggleRow
+          label="Parking availability updates"
+          value={availabilityUpdates}
+          onValueChange={setAvailabilityUpdates}
+        />
+        <ModalCloseButton onPress={() => setActiveModal(null)} />
+      </CenteredModal>
+
+      <CenteredModal
+        visible={activeModal === "support"}
+        onClose={() => setActiveModal(null)}
+      >
+        <Text style={styles.modalTitle}>How can we help?</Text>
+        <Text style={styles.modalBody}>
+          Contact ParkPal support for reservation, payment, or parking issues.
+        </Text>
+        <View style={styles.supportEmailBox}>
+          <Text style={styles.supportEmail}>support@parkpal.app</Text>
+        </View>
+        <ModalCloseButton label="Close" onPress={() => setActiveModal(null)} />
+      </CenteredModal>
+
+      <CenteredModal
+        visible={activeModal === "privacy"}
+        onClose={() => setActiveModal(null)}
+      >
+        <Text style={styles.modalTitle}>Privacy & Terms</Text>
+        <PolicySection
+          title="Privacy"
+          text="We use your account details to manage reservations and app access."
+        />
+        <PolicySection
+          title="Terms"
+          text="Reservations must follow parking rules, timing limits, and local regulations."
+        />
+        <PolicySection
+          title="Payments"
+          text="Payments are simulated in this MVP. No card data is stored."
+        />
+        <PolicySection
+          title="Location data"
+          text="Location is used only to help you find nearby parking."
+        />
+        <ModalCloseButton label="Close" onPress={() => setActiveModal(null)} />
+      </CenteredModal>
     </ScreenWrapper>
+  );
+}
+
+function CenteredModal({
+  visible,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalCard}>{children}</Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function SelectionRow({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.selectionRow,
+        selected && styles.selectionRowSelected,
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <Text style={theme.Typography.body}>{label}</Text>
+      {selected ? <Text style={styles.selectedMark}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
+function ToggleRow({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={styles.toggleRow}>
+      <Text style={theme.Typography.body}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{
+          false: theme.Colors.border,
+          true: "rgba(89,165,117,0.35)",
+        }}
+        thumbColor={value ? theme.Colors.secondaryGreen : "#f4f4f5"}
+      />
+    </View>
+  );
+}
+
+function PolicySection({ title, text }: { title: string; text: string }) {
+  return (
+    <View style={styles.policySection}>
+      <Text style={styles.policyTitle}>{title}</Text>
+      <Text style={styles.policyText}>{text}</Text>
+    </View>
+  );
+}
+
+function ModalCloseButton({
+  label = "Cancel",
+  onPress,
+}: {
+  label?: string;
+  onPress: () => void;
+}) {
+  return (
+    <>
+      <View style={styles.modalDivider} />
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.cancelButton,
+          pressed && { opacity: 0.75 },
+        ]}
+      >
+        <Text style={styles.cancelText}>{label}</Text>
+      </Pressable>
+    </>
   );
 }
 
@@ -182,6 +368,11 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: "700",
   },
+  emailText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: theme.Spacing.xs,
+  },
   infoCard: { marginTop: theme.Spacing.sm },
   infoRow: {
     flexDirection: "row",
@@ -189,6 +380,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: theme.Colors.border,
+  },
+  lastRow: {
+    borderBottomWidth: 0,
   },
   actionsCard: { marginTop: theme.Spacing.sm },
   actionRow: {
@@ -209,17 +403,17 @@ const styles = StyleSheet.create({
   chev: { color: theme.Colors.textSecondary, fontSize: 18 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(2,6,23,0.28)",
+    backgroundColor: "rgba(2,6,23,0.34)",
     alignItems: "center",
     justifyContent: "center",
     padding: theme.Spacing.lg,
   },
-  languageModal: {
+  modalCard: {
     backgroundColor: theme.Colors.surface,
     borderRadius: theme.Radius.lg,
     padding: theme.Spacing.md,
     width: "100%",
-    maxWidth: 340,
+    maxWidth: 360,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
@@ -230,7 +424,14 @@ const styles = StyleSheet.create({
     ...theme.Typography.subtitle,
     textAlign: "center",
   },
-  languageOption: {
+  modalBody: {
+    ...theme.Typography.body,
+    color: theme.Colors.textSecondary,
+    textAlign: "center",
+    marginTop: theme.Spacing.sm,
+    marginBottom: theme.Spacing.md,
+  },
+  selectionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -238,13 +439,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.Spacing.sm,
     borderRadius: theme.Radius.md,
   },
-  languageOptionSelected: {
+  selectionRowSelected: {
     backgroundColor: "rgba(20,43,108,0.06)",
   },
   selectedMark: {
     color: theme.Colors.primary,
     fontSize: 16,
     fontWeight: "700",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: theme.Spacing.sm,
+  },
+  supportEmailBox: {
+    backgroundColor: theme.Colors.background,
+    borderRadius: theme.Radius.md,
+    padding: theme.Spacing.md,
+    alignItems: "center",
+  },
+  supportEmail: {
+    ...theme.Typography.body,
+    color: theme.Colors.primary,
+    fontWeight: "700",
+  },
+  policySection: {
+    paddingVertical: theme.Spacing.sm,
+  },
+  policyTitle: {
+    ...theme.Typography.body,
+    fontWeight: "700",
+  },
+  policyText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: 3,
   },
   modalDivider: {
     height: 1,

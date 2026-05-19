@@ -6,6 +6,7 @@ export type AuthUser = {
   email: string;
   role: string;
   phoneNumber?: string | null;
+  createdAt?: string;
 };
 
 type AuthResponse = {
