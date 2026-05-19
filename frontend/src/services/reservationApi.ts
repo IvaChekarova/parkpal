@@ -2,6 +2,7 @@ import { API_BASE_URL } from "../config/api";
 
 export type ReservationType = "ONE_TIME" | "LONG_TERM";
 export type ReservationStatus = "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
 export type Reservation = {
   id: string;
@@ -28,6 +29,15 @@ export type Reservation = {
     totalPrice: number;
     currency: string;
   };
+  payment: {
+    id: string;
+    amount: number;
+    currency: string;
+    paymentMethod: string;
+    paymentStatus: PaymentStatus;
+    transactionReference: string | null;
+    paidAt: string | null;
+  } | null;
 };
 
 type CreateReservationPayload = {

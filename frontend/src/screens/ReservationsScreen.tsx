@@ -23,6 +23,9 @@ import theme from "../theme";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Reservations">;
 type ReservationTypeTab = "ONE_TIME" | "LONG_TERM";
+type ReservationPaymentStatus = NonNullable<
+  Reservation["payment"]
+>["paymentStatus"];
 
 const RESERVATION_TYPE_TABS: { label: string; value: ReservationTypeTab }[] = [
   { label: "One-time", value: "ONE_TIME" },
@@ -59,6 +62,33 @@ const statusStyle = (status: Reservation["status"]) => {
   }
 
   if (status === "CANCELLED") {
+    return {
+      backgroundColor: "rgba(239,68,68,0.1)",
+      color: theme.Colors.error,
+    };
+  }
+
+  return {
+    backgroundColor: "rgba(59,130,246,0.08)",
+    color: "#3b82f6",
+  };
+};
+
+const paymentLabel = (status?: ReservationPaymentStatus) => {
+  if (status === "PAID") return "Paid";
+  if (status === "FAILED") return "Failed";
+  return "Pending";
+};
+
+const paymentStyle = (status?: ReservationPaymentStatus) => {
+  if (status === "PAID") {
+    return {
+      backgroundColor: "rgba(89,165,117,0.12)",
+      color: theme.Colors.secondaryGreen,
+    };
+  }
+
+  if (status === "FAILED") {
     return {
       backgroundColor: "rgba(239,68,68,0.1)",
       color: theme.Colors.error,
@@ -197,6 +227,7 @@ export default function ReservationsScreen() {
 
   function renderCard(item: Reservation, important = false) {
     const badge = statusStyle(item.status);
+    const paymentBadge = paymentStyle(item.payment?.paymentStatus);
     const isUpcoming = item.status === "UPCOMING";
     const isCancellable = canCancelReservation(item);
     const isCancelling = cancellingId === item.id;
@@ -246,6 +277,19 @@ export default function ReservationsScreen() {
           <Text style={theme.Typography.subtitle}>
             €{item.pricing.totalPrice.toFixed(2)}
           </Text>
+        </View>
+
+        <View style={styles.paymentRow}>
+          <View
+            style={[
+              styles.paymentChip,
+              { backgroundColor: paymentBadge.backgroundColor },
+            ]}
+          >
+            <Text style={[styles.paymentText, { color: paymentBadge.color }]}>
+              {paymentLabel(item.payment?.paymentStatus)}
+            </Text>
+          </View>
         </View>
 
         {isUpcoming ? (
@@ -482,6 +526,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  paymentRow: {
+    flexDirection: "row",
+    marginTop: theme.Spacing.sm,
+  },
+  paymentChip: {
+    borderRadius: 999,
+    paddingHorizontal: theme.Spacing.sm,
+    paddingVertical: 5,
+  },
+  paymentText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   cancelRow: {
     alignItems: "flex-end",

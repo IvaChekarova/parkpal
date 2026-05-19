@@ -1,6 +1,8 @@
 import {
   ParkingType,
   ParkingSpotStatus,
+  PaymentMethod,
+  PaymentStatus,
   ReservationStatus,
   ReservationType,
 } from "../generated/prisma/client";
@@ -32,6 +34,13 @@ const BOOKABLE_STATUSES = [
   ReservationStatus.ACTIVE,
   ReservationStatus.UPCOMING,
 ];
+
+const createMockTransactionReference = () => {
+  return `MOCK-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)
+    .toUpperCase()}`;
+};
 
 const isReservationType = (value: string): value is ReservationType => {
   return value === ReservationType.ONE_TIME || value === ReservationType.LONG_TERM;
@@ -198,6 +207,17 @@ const formatReservation = (reservation: any) => {
       totalPrice,
       currency: "EUR",
     },
+    payment: reservation.payment
+      ? {
+          id: reservation.payment.id,
+          amount: Number(reservation.payment.amount),
+          currency: reservation.payment.currency,
+          paymentMethod: reservation.payment.paymentMethod,
+          paymentStatus: reservation.payment.paymentStatus,
+          transactionReference: reservation.payment.transactionReference,
+          paidAt: reservation.payment.paidAt,
+        }
+      : null,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
   };
@@ -337,6 +357,20 @@ export const createReservation = async (
       include: {
         parkingLocation: true,
         parkingSpot: true,
+        payment: true,
+      },
+    });
+
+    const payment = await tx.payment.create({
+      data: {
+        reservationId: reservation.id,
+        userId,
+        amount: totalPrice.toFixed(2),
+        currency: "EUR",
+        paymentMethod: PaymentMethod.CARD,
+        paymentStatus: PaymentStatus.PAID,
+        transactionReference: createMockTransactionReference(),
+        paidAt: new Date(),
       },
     });
 
@@ -348,7 +382,7 @@ export const createReservation = async (
       },
     });
 
-    return formatReservation(reservation);
+    return formatReservation({ ...reservation, payment });
   });
 };
 
@@ -359,6 +393,7 @@ export const getMyReservations = async (userId: string) => {
     include: {
       parkingLocation: true,
       parkingSpot: true,
+      payment: true,
     },
   });
 
@@ -371,6 +406,7 @@ export const getReservationById = async (userId: string, id: string) => {
     include: {
       parkingLocation: true,
       parkingSpot: true,
+      payment: true,
     },
   });
 
@@ -396,6 +432,7 @@ export const cancelReservation = async (userId: string, id: string) => {
       include: {
         parkingLocation: true,
         parkingSpot: true,
+        payment: true,
       },
     });
 
@@ -435,6 +472,7 @@ export const cancelReservation = async (userId: string, id: string) => {
       include: {
         parkingLocation: true,
         parkingSpot: true,
+        payment: true,
       },
     });
 
