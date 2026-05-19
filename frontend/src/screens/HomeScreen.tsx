@@ -91,6 +91,11 @@ export default function HomeScreen() {
   const [activeDatePicker, setActiveDatePicker] = React.useState<
     "from" | "to" | null
   >(null);
+  const [nearbyParkings, setNearbyParkings] = React.useState<ParkingSummary[]>(
+    []
+  );
+  const [isLoadingNearby, setIsLoadingNearby] = React.useState(false);
+  const [nearbyError, setNearbyError] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [error, setError] = React.useState("");
   const pickerAnimation = React.useRef(new Animated.Value(0)).current;
@@ -105,6 +110,40 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, [activeDatePicker, pickerAnimation]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadNearbyParkings = async () => {
+      setIsLoadingNearby(true);
+      setNearbyError("");
+
+      try {
+        const parkings = await parkingApi.getParkings();
+        const availableParkings = parkings
+          .filter((parking) => parking.availabilityStatus !== "FULL")
+          .slice(0, 3);
+
+        if (isMounted) {
+          setNearbyParkings(availableParkings);
+        }
+      } catch (_err) {
+        if (isMounted) {
+          setNearbyError("Unable to load nearby parking.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingNearby(false);
+        }
+      }
+    };
+
+    loadNearbyParkings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDateChange = (
     event: DateTimePickerEvent,
@@ -255,12 +294,40 @@ export default function HomeScreen() {
           </View>
         </Pressable>
 
-        <View style={styles.emptyPrompt}>
-          <Text style={styles.emptyTitle}>Search parking across Skopje</Text>
-          <Text style={styles.emptyText}>
-            Use the search panel to find public and private parking from the
-            ParkPal backend.
-          </Text>
+        <View style={styles.nearbySection}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Closest parking near you</Text>
+              <Text style={styles.sectionSubtitle}>
+                Based on your current location
+              </Text>
+            </View>
+            {isLoadingNearby ? (
+              <ActivityIndicator size="small" color={theme.Colors.primary} />
+            ) : null}
+          </View>
+
+          {nearbyError ? (
+            <Text style={styles.emptyText}>{nearbyError}</Text>
+          ) : nearbyParkings.length === 0 && !isLoadingNearby ? (
+            <Text style={styles.emptyText}>
+              No nearby parking available right now.
+            </Text>
+          ) : (
+            <View style={styles.nearbyList}>
+              {nearbyParkings.map((parking) => (
+                <NearbyParkingCard
+                  key={parking.id}
+                  parking={parking}
+                  onPress={() =>
+                    navigation.navigate("ParkingDetails", {
+                      parkingId: parking.id,
+                    })
+                  }
+                />
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -479,6 +546,82 @@ export default function HomeScreen() {
   );
 }
 
+function NearbyParkingCard({
+  parking,
+  onPress,
+}: {
+  parking: ParkingSummary;
+  onPress: () => void;
+}) {
+  const statusStyle =
+    parking.availabilityStatus === "AVAILABLE"
+      ? {
+          label: "Available",
+          backgroundColor: "rgba(89,165,117,0.12)",
+          color: theme.Colors.secondaryGreen,
+        }
+      : parking.availabilityStatus === "LIMITED"
+        ? {
+            label: "Limited",
+            backgroundColor: "rgba(245,158,11,0.13)",
+            color: "#b45309",
+          }
+        : {
+            label: "Full",
+            backgroundColor: "rgba(239,68,68,0.1)",
+            color: theme.Colors.error,
+          };
+
+  const availabilityText =
+    parking.availabilityStatus === "FULL"
+      ? "No spots available"
+      : parking.availabilityStatus === "LIMITED"
+        ? `Only ${parking.availableSpots} spot${
+            parking.availableSpots === 1 ? "" : "s"
+          } left`
+        : `${parking.availableSpots} spot${
+            parking.availableSpots === 1 ? "" : "s"
+          } available`;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.nearbyCard,
+        pressed && { opacity: 0.86 },
+      ]}
+    >
+      <View style={styles.nearbyCardTop}>
+        <View style={styles.nearbyTitleBlock}>
+          <Text style={styles.nearbyName} numberOfLines={1}>
+            {parking.name}
+          </Text>
+          <Text style={styles.nearbyDistance} numberOfLines={1}>
+            {parking.city} · nearby
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.nearbyBadge,
+            { backgroundColor: statusStyle.backgroundColor },
+          ]}
+        >
+          <Text style={[styles.nearbyBadgeText, { color: statusStyle.color }]}>
+            {statusStyle.label}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.nearbyMetaRow}>
+        <Text style={styles.nearbyAvailability}>{availabilityText}</Text>
+        <Text style={styles.nearbyPrice}>
+          €{parking.pricePerHour.toFixed(2)}/hr
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function DateField({
   label,
   value,
@@ -586,19 +729,78 @@ const styles = StyleSheet.create({
     color: theme.Colors.textSecondary,
     marginTop: 2,
   },
-  emptyPrompt: {
+  nearbySection: {
     marginTop: theme.Spacing.xl,
-    padding: theme.Spacing.lg,
-    borderRadius: theme.Radius.lg,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.Spacing.sm,
+  },
+  sectionTitle: { ...theme.Typography.subtitle },
+  sectionSubtitle: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: 2,
+  },
+  nearbyList: {
+    gap: theme.Spacing.sm,
+  },
+  nearbyCard: {
     backgroundColor: theme.Colors.surface,
+    borderRadius: theme.Radius.lg,
     borderWidth: 1,
     borderColor: theme.Colors.border,
+    padding: theme.Spacing.md,
   },
-  emptyTitle: { ...theme.Typography.subtitle },
+  nearbyCardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  nearbyTitleBlock: {
+    flex: 1,
+    paddingRight: theme.Spacing.sm,
+  },
+  nearbyName: {
+    ...theme.Typography.body,
+    fontWeight: "700",
+  },
+  nearbyDistance: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: 2,
+  },
+  nearbyBadge: {
+    borderRadius: 999,
+    paddingHorizontal: theme.Spacing.sm,
+    paddingVertical: 5,
+  },
+  nearbyBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  nearbyMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: theme.Spacing.sm,
+  },
+  nearbyAvailability: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+    paddingRight: theme.Spacing.sm,
+  },
+  nearbyPrice: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    fontWeight: "700",
+  },
   emptyText: {
     ...theme.Typography.body,
     color: theme.Colors.textSecondary,
-    marginTop: theme.Spacing.xs,
   },
   modalOverlay: {
     flex: 1,
