@@ -37,7 +37,6 @@ try {
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 const ONE_TIME_DATES = ["Today", "Tomorrow", "May 17"];
-const TIMES = ["10:00", "12:00", "14:00", "18:00"];
 const PARKING_TYPES: { label: string; value: ParkingTypeFilter }[] = [
   { label: "All", value: "all" },
   { label: "Public", value: "PUBLIC" },
@@ -67,6 +66,18 @@ const startOfToday = () => {
   return today;
 };
 
+const addDays = (value: Date, days: number) => {
+  const nextDate = new Date(value);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+const getDateRangeDays = (startDate: Date, endDate: Date) => {
+  return Math.round(
+    (endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
+  );
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const [modalVisible, setModalVisible] = React.useState(false);
@@ -75,8 +86,6 @@ export default function HomeScreen() {
   const [date, setDate] = React.useState("Today");
   const [fromDate, setFromDate] = React.useState<Date | null>(null);
   const [toDate, setToDate] = React.useState<Date | null>(null);
-  const [startTime, setStartTime] = React.useState("10:00");
-  const [endTime, setEndTime] = React.useState("12:00");
   const [parkingType, setParkingType] =
     React.useState<ParkingTypeFilter>("all");
   const [activeDatePicker, setActiveDatePicker] = React.useState<
@@ -112,7 +121,9 @@ export default function HomeScreen() {
     if (activeDatePicker === "from") {
       setFromDate(normalizedDate);
 
-      if (toDate && toDate < normalizedDate) {
+      if (normalizedDate < startOfToday()) {
+        setError("From date cannot be in the past.");
+      } else if (toDate && toDate <= normalizedDate) {
         setToDate(null);
         setError("Please select a to date after the from date.");
       } else {
@@ -123,8 +134,8 @@ export default function HomeScreen() {
       return;
     }
 
-    if (fromDate && normalizedDate < fromDate) {
-      setError("To date cannot be before from date.");
+    if (fromDate && normalizedDate <= fromDate) {
+      setError("To date must be after from date.");
       setActiveDatePicker(null);
       return;
     }
@@ -139,14 +150,40 @@ export default function HomeScreen() {
 
     setError("");
 
-    if (mode === "long-term" && (!fromDate || !toDate)) {
-      setError("Please select both from date and to date.");
-      return;
-    }
+    if (mode === "long-term") {
+      const today = startOfToday();
 
-    if (mode === "long-term" && fromDate && toDate && toDate < fromDate) {
-      setError("To date cannot be before from date.");
-      return;
+      if (!fromDate) {
+        setError("Please select a from date.");
+        return;
+      }
+
+      if (!toDate) {
+        setError("Please select a to date.");
+        return;
+      }
+
+      if (fromDate < today) {
+        setError("From date cannot be in the past.");
+        return;
+      }
+
+      if (toDate <= fromDate) {
+        setError("To date must be after from date.");
+        return;
+      }
+
+      const durationDays = getDateRangeDays(fromDate, toDate);
+
+      if (durationDays < 1) {
+        setError("Long-term reservations must be at least 1 day.");
+        return;
+      }
+
+      if (durationDays > 30) {
+        setError("Long-term reservations can be up to 30 days.");
+        return;
+      }
     }
 
     setIsSearching(true);
@@ -176,8 +213,6 @@ export default function HomeScreen() {
             mode === "long-term" && toDate
               ? formatDateValue(toDate)
               : undefined,
-          startTime: mode === "one-time" ? startTime : undefined,
-          endTime: mode === "one-time" ? endTime : undefined,
         },
       });
     } catch (_err) {
@@ -307,18 +342,6 @@ export default function HomeScreen() {
                   value={date}
                   onChange={setDate}
                 />
-                <ChipGroup
-                  label="Start time"
-                  options={TIMES}
-                  value={startTime}
-                  onChange={setStartTime}
-                />
-                <ChipGroup
-                  label="End time"
-                  options={TIMES}
-                  value={endTime}
-                  onChange={setEndTime}
-                />
                 <Text style={styles.fieldLabel}>Parking type</Text>
                 <View style={styles.chipRow}>
                   {PARKING_TYPES.map((item) => (
@@ -434,13 +457,15 @@ export default function HomeScreen() {
                   value={
                     activeDatePicker === "from"
                       ? fromDate ?? startOfToday()
-                      : toDate ?? fromDate ?? startOfToday()
+                      : toDate ?? (fromDate ? addDays(fromDate, 1) : startOfToday())
                   }
                   mode="date"
                   display="spinner"
                   minimumDate={
                     activeDatePicker === "to"
-                      ? fromDate ?? startOfToday()
+                      ? fromDate
+                        ? addDays(fromDate, 1)
+                        : startOfToday()
                       : startOfToday()
                   }
                   onChange={handleDateChange}

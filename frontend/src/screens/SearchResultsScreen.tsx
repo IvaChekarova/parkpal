@@ -1,40 +1,243 @@
 import React from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import MapView, { Marker, Region } from "react-native-maps";
 
 import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
-import { ParkingSummary } from "../services/parkingApi";
+import { useAuth } from "../context/AuthContext";
+import {
+  parkingApi,
+  ParkingDetails,
+  ParkingSummary,
+} from "../services/parkingApi";
 import theme from "../theme";
 import type { RootStackParamList, SearchData } from "../navigation/types";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "SearchResults">;
 
+const DEFAULT_REGION: Region = {
+  latitude: 41.9981,
+  longitude: 21.4254,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
+
+const hasValidCoordinate = (parking: ParkingSummary) => {
+  return (
+    Number.isFinite(Number(parking.latitude)) &&
+    Number.isFinite(Number(parking.longitude))
+  );
+};
+
+const getCoordinate = (parking: ParkingSummary) => ({
+  latitude: Number(parking.latitude),
+  longitude: Number(parking.longitude),
+});
+
+const getMarkerColor = (
+  status: ParkingSummary["availabilityStatus"],
+  isSelected: boolean
+) => {
+  if (isSelected) return theme.Colors.primary;
+  if (status === "FULL") return theme.Colors.error;
+  if (status === "LIMITED") return "#b45309";
+  return theme.Colors.secondaryGreen;
+};
+
 export default function SearchResultsScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<any>();
-  const results = (route.params?.results ?? []) as ParkingSummary[];
+  const initialResults = (route.params?.results ?? []) as ParkingSummary[];
   const search = route.params?.search as SearchData | undefined;
+  const { token } = useAuth();
+  const mapRef = React.useRef<MapView | null>(null);
+  const listRef = React.useRef<FlatList<ParkingSummary> | null>(null);
+  const [results, setResults] = React.useState<ParkingSummary[]>(initialResults);
+  const [isSimulating, setIsSimulating] = React.useState(false);
+  const [selectedParkingId, setSelectedParkingId] = React.useState<string | null>(
+    initialResults[0]?.id ?? null
+  );
 
   const title = search?.location?.trim() || "All locations";
+  const selectedType =
+    search?.parkingType && search.parkingType !== "all"
+      ? search.parkingType === "PUBLIC"
+        ? "Public"
+        : "Private"
+      : "All types";
   const timing =
     search?.mode === "long-term"
-      ? `${search.fromDate ?? "Today"} - ${search.toDate ?? "May 17"}`
-      : `${search?.date ?? "Today"} · ${search?.startTime ?? "10:00"} - ${
-          search?.endTime ?? "12:00"
-        }`;
+      ? `${search.fromDate ?? "From date"} - ${search.toDate ?? "To date"} · ${selectedType}`
+      : `${search?.date ?? "Today"} · ${selectedType}`;
+
+  const refreshResults = React.useCallback(async () => {
+    try {
+      const latestResults = await parkingApi.searchParkings({
+        location: search?.location,
+        parkingType:
+          search?.parkingType && search.parkingType !== "all"
+            ? search.parkingType
+            : undefined,
+      });
+      setResults(latestResults);
+    } catch (_err) {
+      // Keep the already-rendered backend results if a silent refresh fails.
+    }
+  }, [search?.location, search?.parkingType]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshResults();
+    }, [refreshResults])
+  );
+
+  React.useEffect(() => {
+    if (results.length === 0) {
+      setSelectedParkingId(null);
+      return;
+    }
+
+    if (!selectedParkingId || !results.some((item) => item.id === selectedParkingId)) {
+      setSelectedParkingId(results[0].id);
+    }
+  }, [results, selectedParkingId]);
+
+  const mapRegion = React.useMemo<Region>(() => {
+    const firstParkingWithCoordinates = results.find(hasValidCoordinate);
+
+    if (!firstParkingWithCoordinates) {
+      return DEFAULT_REGION;
+    }
+
+    const coordinate = getCoordinate(firstParkingWithCoordinates);
+
+    return {
+      ...coordinate,
+      latitudeDelta: 0.035,
+      longitudeDelta: 0.035,
+    };
+  }, [results]);
+
+  React.useEffect(() => {
+    mapRef.current?.animateToRegion(mapRegion, 250);
+  }, [mapRegion]);
+
+  const selectedParking = React.useMemo(() => {
+    return results.find((item) => item.id === selectedParkingId) ?? null;
+  }, [results, selectedParkingId]);
+
+  const handleMarkerPress = (parking: ParkingSummary) => {
+    const coordinate = getCoordinate(parking);
+    const listIndex = results.findIndex((item) => item.id === parking.id);
+
+    setSelectedParkingId(parking.id);
+    mapRef.current?.animateToRegion(
+      {
+        ...coordinate,
+        latitudeDelta: 0.025,
+        longitudeDelta: 0.025,
+      },
+      220
+    );
+
+    if (listIndex >= 0) {
+      listRef.current?.scrollToIndex({
+        index: listIndex,
+        animated: true,
+        viewPosition: 0.12,
+      });
+    }
+  };
+
+  const updateResultFromDetails = (parking: ParkingDetails) => {
+    setResults((current) =>
+      current.map((item) =>
+        item.id === parking.id
+          ? {
+              ...item,
+              totalSpots: parking.totalSpots,
+              availableSpots: parking.availableSpots,
+              occupiedSpots: parking.occupiedSpots,
+              occupancyPercentage: parking.occupancyPercentage,
+              availabilityStatus: parking.availabilityStatus,
+            }
+          : item
+      )
+    );
+  };
+
+  const simulateUpdate = async () => {
+    if (!token || isSimulating) return;
+
+    setIsSimulating(true);
+
+    try {
+      const parking = await parkingApi.demoRandomUpdate(token, results[0]?.id);
+      updateResultFromDetails(parking);
+    } catch (_err) {
+      // Demo-only action. Keep the existing results if the backend is unavailable.
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   const renderItem = ({ item }: { item: ParkingSummary }) => {
-    const isOpen = item.availableSpots > 0;
+    const isFull = item.availabilityStatus === "FULL";
+    const badge =
+      item.availabilityStatus === "AVAILABLE"
+        ? {
+            label: "Available",
+            backgroundColor: "rgba(89,165,117,0.12)",
+            color: theme.Colors.secondaryGreen,
+          }
+        : item.availabilityStatus === "LIMITED"
+          ? {
+              label: "Limited",
+              backgroundColor: "rgba(245,158,11,0.13)",
+              color: "#b45309",
+            }
+          : {
+              label: "Full",
+              backgroundColor: "rgba(239,68,68,0.1)",
+              color: theme.Colors.error,
+            };
+    const availabilityText =
+      item.availabilityStatus === "FULL"
+        ? "No spots available"
+        : item.availabilityStatus === "LIMITED"
+          ? `Only ${item.availableSpots} spot${
+              item.availableSpots === 1 ? "" : "s"
+            } left`
+          : `${item.availableSpots} spot${
+              item.availableSpots === 1 ? "" : "s"
+            } available`;
 
     return (
       <Pressable
+        disabled={isFull}
         onPress={() =>
-          navigation.navigate("ParkingDetails", { parkingId: item.id })
+          navigation.navigate("ParkingDetails", { parkingId: item.id, search })
         }
+        style={isFull ? styles.disabledCardPressable : undefined}
       >
-        <Card style={styles.card}>
+        <Card
+          style={
+            selectedParkingId === item.id ? styles.selectedCard : styles.card
+          }
+        >
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleBlock}>
               <Text style={styles.cardTitle}>{item.name}</Text>
@@ -43,35 +246,28 @@ export default function SearchResultsScreen() {
             <View
               style={[
                 styles.badge,
-                {
-                  backgroundColor: isOpen
-                    ? "rgba(89,165,117,0.12)"
-                    : "rgba(2,6,23,0.06)",
-                },
+                { backgroundColor: badge.backgroundColor },
               ]}
             >
               <Text
                 style={[
                   styles.badgeText,
-                  {
-                    color: isOpen
-                      ? theme.Colors.secondaryGreen
-                      : theme.Colors.textSecondary,
-                  },
+                  { color: badge.color },
                 ]}
               >
-                {isOpen ? "Available" : "Full"}
+                {badge.label}
               </Text>
             </View>
           </View>
 
           <View style={styles.metaRow}>
-            <Text style={styles.meta}>{item.city}</Text>
-            <Text style={styles.meta}>{item.availableSpots} spots</Text>
+            <Text style={styles.availabilityText}>{availabilityText}</Text>
             <Text style={styles.price}>€{item.pricePerHour.toFixed(2)}/hr</Text>
           </View>
 
-          <Text style={styles.detailsLink}>View details</Text>
+          <Text style={[styles.detailsLink, isFull && styles.detailsLinkDisabled]}>
+            {isFull ? "No spots available" : "View details"}
+          </Text>
         </Card>
       </Pressable>
     );
@@ -94,19 +290,89 @@ export default function SearchResultsScreen() {
       </View>
 
       <View style={styles.mapPreview}>
-        <View style={[styles.pin, styles.pinOne]}>
-          <Text style={styles.pinText}>€0.65/hr</Text>
-        </View>
-        <View style={[styles.pin, styles.pinTwo]}>
-          <Text style={styles.pinText}>€0.90/hr</Text>
-        </View>
-        <View style={[styles.pin, styles.pinThree]}>
-          <Text style={styles.pinText}>€1.20/hr</Text>
-        </View>
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFill}
+          initialRegion={mapRegion}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          toolbarEnabled={false}
+        >
+          {results.filter(hasValidCoordinate).map((item) => {
+            const isSelected = selectedParkingId === item.id;
+            const markerColor = getMarkerColor(
+              item.availabilityStatus,
+              isSelected
+            );
+
+            return (
+              <Marker
+                key={item.id}
+                coordinate={getCoordinate(item)}
+                onPress={() => handleMarkerPress(item)}
+              >
+                <View
+                  style={[
+                    styles.priceMarker,
+                    {
+                      backgroundColor: markerColor,
+                      transform: [{ scale: isSelected ? 1.08 : 1 }],
+                    },
+                  ]}
+                >
+                  <Text style={styles.priceMarkerText}>
+                    €{item.pricePerHour.toFixed(2)}/hr
+                  </Text>
+                </View>
+              </Marker>
+            );
+          })}
+        </MapView>
+
+        {selectedParking ? (
+          <Pressable
+            disabled={selectedParking.availabilityStatus === "FULL"}
+            onPress={() =>
+              navigation.navigate("ParkingDetails", {
+                parkingId: selectedParking.id,
+                search,
+              })
+            }
+            style={styles.mapPreviewCard}
+          >
+            <Text style={styles.mapPreviewTitle} numberOfLines={1}>
+              {selectedParking.name}
+            </Text>
+            <Text style={styles.mapPreviewSubtitle} numberOfLines={1}>
+              {selectedParking.availabilityStatus === "FULL"
+                ? "No spots available"
+                : `${selectedParking.availableSpots} spots available`}{" "}
+              · €{selectedParking.pricePerHour.toFixed(2)}/hr
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.resultsHeader}>
-        <Text style={theme.Typography.subtitle}>Available parking</Text>
+        <View style={styles.resultsHeaderRow}>
+          <Text style={theme.Typography.subtitle}>Available parking</Text>
+          {token ? (
+            <Pressable
+              disabled={isSimulating || results.length === 0}
+              onPress={simulateUpdate}
+              style={({ pressed }) => [
+                styles.simulateButton,
+                pressed && { opacity: 0.82 },
+              ]}
+            >
+              {isSimulating ? (
+                <ActivityIndicator size="small" color={theme.Colors.primary} />
+              ) : (
+                <Text style={styles.simulateText}>Simulate update</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
         <Text style={styles.resultCount}>
           {results.length} result{results.length === 1 ? "" : "s"} ·{" "}
           {search?.parkingType === "all" || !search?.parkingType
@@ -121,9 +387,12 @@ export default function SearchResultsScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={results}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          extraData={selectedParkingId}
+          onScrollToIndexFailed={() => undefined}
           ItemSeparatorComponent={() => (
             <View style={{ height: theme.Spacing.sm }} />
           )}
@@ -168,7 +437,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   mapPreview: {
-    height: 180,
+    height: 220,
     borderRadius: theme.Radius.lg,
     backgroundColor: "#EAF1F4",
     borderWidth: 1,
@@ -176,24 +445,78 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: theme.Spacing.md,
   },
-  pin: {
-    position: "absolute",
-    backgroundColor: theme.Colors.primary,
+  priceMarker: {
     paddingHorizontal: theme.Spacing.sm,
     paddingVertical: 6,
     borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  pinOne: { top: 34, left: 26 },
-  pinTwo: { top: 78, right: 34 },
-  pinThree: { bottom: 36, left: 118 },
-  pinText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  priceMarkerText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  mapPreviewCard: {
+    position: "absolute",
+    left: theme.Spacing.md,
+    right: theme.Spacing.md,
+    bottom: theme.Spacing.md,
+    backgroundColor: theme.Colors.surface,
+    borderRadius: theme.Radius.lg,
+    paddingHorizontal: theme.Spacing.md,
+    paddingVertical: theme.Spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.Colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  mapPreviewTitle: {
+    ...theme.Typography.body,
+    fontWeight: "700",
+  },
+  mapPreviewSubtitle: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: 2,
+  },
   resultsHeader: { marginBottom: theme.Spacing.sm },
+  resultsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  simulateButton: {
+    minHeight: 32,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.Colors.border,
+    paddingHorizontal: theme.Spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.Colors.surface,
+  },
+  simulateText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.primary,
+    fontWeight: "700",
+  },
   resultCount: {
     ...theme.Typography.caption,
     color: theme.Colors.textSecondary,
     marginTop: theme.Spacing.xs,
   },
   card: { marginBottom: theme.Spacing.sm },
+  selectedCard: {
+    marginBottom: theme.Spacing.sm,
+    borderColor: theme.Colors.primary,
+    borderWidth: 1,
+  },
+  disabledCardPressable: { opacity: 0.72 },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -215,14 +538,24 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: theme.Spacing.md,
   },
-  meta: { ...theme.Typography.caption, color: theme.Colors.textSecondary },
-  price: { ...theme.Typography.caption, color: theme.Colors.primary },
+  availabilityText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+    paddingRight: theme.Spacing.sm,
+  },
+  price: { ...theme.Typography.caption, color: theme.Colors.textSecondary },
   detailsLink: {
     color: theme.Colors.primary,
     fontWeight: "700",
     marginTop: theme.Spacing.md,
+  },
+  detailsLinkDisabled: {
+    color: theme.Colors.textSecondary,
   },
   emptyState: {
     alignItems: "center",

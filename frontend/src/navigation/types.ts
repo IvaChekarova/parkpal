@@ -27,6 +27,7 @@ export type RootStackParamList = {
     | undefined
     | {
         parkingId?: string;
+        search?: SearchData;
         parking?: {
           name: string;
           address: string;
@@ -35,6 +36,7 @@ export type RootStackParamList = {
       };
   ReservationConfirm: {
     parking: {
+      id?: string;
       name: string;
       address: string;
       pricePerHour: number;

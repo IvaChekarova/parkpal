@@ -11,6 +11,9 @@ export type ParkingSummary = {
   pricePerHour: number;
   totalSpots: number;
   availableSpots: number;
+  occupiedSpots: number;
+  occupancyPercentage: number;
+  availabilityStatus: "AVAILABLE" | "LIMITED" | "FULL";
 };
 
 export type ParkingSpot = {
@@ -55,6 +58,29 @@ const request = async <T>(path: string): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
+const authRequest = async <T>(
+  path: string,
+  token: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(options.headers ?? {}),
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message ?? "Unable to update parking data");
+  }
+
+  return data as T;
+};
+
 const buildSearchQuery = (params: SearchParkingsParams) => {
   const query = new URLSearchParams();
 
@@ -91,5 +117,16 @@ export const parkingApi = {
     const data = await request<ParkingDetailsResponse>(`/parkings/${id}`);
     return data.parking;
   },
-};
 
+  demoRandomUpdate: async (token: string, parkingLocationId?: string) => {
+    const data = await authRequest<ParkingDetailsResponse>(
+      "/iot/demo-random-update",
+      token,
+      {
+        method: "POST",
+        body: JSON.stringify({ parkingLocationId }),
+      }
+    );
+    return data.parking;
+  },
+};

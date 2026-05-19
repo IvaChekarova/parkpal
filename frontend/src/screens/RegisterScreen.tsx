@@ -22,16 +22,38 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavProp>();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const canCreate =
+    fullName.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length > 0 &&
     password === confirmPassword;
+
+  const handleRegister = async () => {
+    if (!canCreate || isLoading) return;
+
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to register");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <ScreenWrapper>
@@ -81,18 +103,15 @@ export default function RegisterScreen() {
             <View style={{ height: theme.Spacing.md }} />
 
             <Button
-              title="Create Account"
-              onPress={() => {
-                if (canCreate) {
-                  // simulate registration
-                  login();
-                }
-              }}
+              title={isLoading ? "Creating account..." : "Create Account"}
+              disabled={!canCreate || isLoading}
+              onPress={handleRegister}
               style={{
                 borderRadius: theme.Radius.lg,
                 paddingVertical: theme.Spacing.md,
               }}
             />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
 
           <View style={styles.bottomRow}>
@@ -144,4 +163,10 @@ const styles = StyleSheet.create({
   },
   bottomText: { color: theme.Colors.textSecondary },
   loginLink: { color: theme.Colors.primary, fontWeight: "600" },
+  errorText: {
+    ...theme.Typography.caption,
+    color: theme.Colors.error,
+    textAlign: "center",
+    marginTop: theme.Spacing.sm,
+  },
 });
