@@ -11,6 +11,7 @@ type AuthContextType = {
     email: string;
     password: string;
   }) => Promise<void>;
+  updateUser: (nextUser: AuthUser) => void;
   logout: () => void;
 };
 
@@ -45,9 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   };
 
+  const updateUser = (nextUser: AuthUser) => {
+    setUser(nextUser);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, token, user, login, register, logout }}
+      value={{
+        isAuthenticated,
+        token,
+        user,
+        login,
+        register,
+        updateUser,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

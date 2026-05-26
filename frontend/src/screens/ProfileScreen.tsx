@@ -6,15 +6,18 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Image,
   Modal,
   Switch,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import ScreenWrapper from "../components/ScreenWrapper";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
 import SectionTitle from "../components/SectionTitle";
 import Card from "../components/Card";
+import { getAbsoluteProfileImageUrl, userApi } from "../services/userApi";
 
 type ModalType = "language" | "currency" | "notifications" | "support" | "privacy" | null;
 
@@ -43,12 +46,14 @@ const getInitial = (name?: string | null) => {
 };
 
 export default function ProfileScreen() {
-  const { logout, user } = useAuth();
+  const { logout, token, updateUser, user } = useAuth();
   const [language, setLanguage] = React.useState("English");
   const [currency, setCurrency] = React.useState("EUR");
   const [activeModal, setActiveModal] = React.useState<ModalType>(null);
   const [reservationReminders, setReservationReminders] = React.useState(true);
   const [availabilityUpdates, setAvailabilityUpdates] = React.useState(false);
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = React.useState(false);
+  const profileImageUri = getAbsoluteProfileImageUrl(user?.profileImageUrl);
 
   const handleLogout = () => {
     Alert.alert("Log out", "Are you sure you want to log out?", [
@@ -63,7 +68,6 @@ export default function ProfileScreen() {
   ];
 
   const actions = [
-    { key: "Reservation history" },
     { key: "Language", value: language, modal: "language" as const },
     { key: "Currency", value: currency, modal: "currency" as const },
     { key: "Notifications", modal: "notifications" as const },
@@ -72,21 +76,109 @@ export default function ProfileScreen() {
   ];
 
   const handleActionPress = (action: (typeof actions)[number]) => {
-    if (action.modal) {
-      setActiveModal(action.modal);
+    setActiveModal(action.modal);
+  };
+
+  const uploadProfileImage = async () => {
+    if (!token || isUpdatingPhoto) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission needed",
+        "Please allow photo library access to change your profile photo."
+      );
       return;
     }
 
-    Alert.alert(action.key);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) {
+      return;
+    }
+
+    setIsUpdatingPhoto(true);
+
+    try {
+      const updatedUser = await userApi.uploadProfileImage(
+        token,
+        result.assets[0].uri
+      );
+      updateUser(updatedUser);
+    } catch (err) {
+      Alert.alert(
+        "Upload failed",
+        err instanceof Error ? err.message : "Unable to update profile photo."
+      );
+    } finally {
+      setIsUpdatingPhoto(false);
+    }
+  };
+
+  const removeProfileImage = async () => {
+    if (!token || isUpdatingPhoto) return;
+
+    setIsUpdatingPhoto(true);
+
+    try {
+      const updatedUser = await userApi.removeProfileImage(token);
+      updateUser(updatedUser);
+    } catch (err) {
+      Alert.alert(
+        "Remove failed",
+        err instanceof Error ? err.message : "Unable to remove profile photo."
+      );
+    } finally {
+      setIsUpdatingPhoto(false);
+    }
+  };
+
+  const openAvatarOptions = () => {
+    const options = [
+      { text: "Change photo", onPress: () => void uploadProfileImage() },
+      ...(profileImageUri
+        ? [
+            {
+              text: "Remove photo",
+              style: "destructive" as const,
+              onPress: () => void removeProfileImage(),
+            },
+          ]
+        : []),
+      { text: "Cancel", style: "cancel" as const },
+    ];
+
+    Alert.alert("Profile photo", undefined, options);
   };
 
   return (
     <ScreenWrapper>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitial(user?.fullName)}</Text>
-          </View>
+          <Pressable
+            onPress={openAvatarOptions}
+            disabled={isUpdatingPhoto}
+            style={({ pressed }) => [
+              styles.avatar,
+              pressed && { opacity: 0.82 },
+              isUpdatingPhoto && { opacity: 0.58 },
+            ]}
+          >
+            {profileImageUri ? (
+              <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{getInitial(user?.fullName)}</Text>
+            )}
+          </Pressable>
+          <Text style={styles.photoHint}>
+            {isUpdatingPhoto ? "Updating photo..." : "Tap to change photo"}
+          </Text>
           <Text
             style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}
           >
@@ -362,11 +454,21 @@ const styles = StyleSheet.create({
     backgroundColor: theme.Colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   avatarText: {
     color: "#fff",
     fontSize: 34,
     fontWeight: "700",
+  },
+  photoHint: {
+    ...theme.Typography.caption,
+    color: theme.Colors.textSecondary,
+    marginTop: theme.Spacing.xs,
   },
   emailText: {
     ...theme.Typography.caption,
