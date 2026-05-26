@@ -2,18 +2,22 @@ import React from "react";
 import {
   ActivityIndicator,
   Animated,
+  DimensionValue,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
+import * as Location from "expo-location";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import MapView, { Marker, Region } from "react-native-maps";
 
 import Button from "../components/Button";
 import Input from "../components/Input";
@@ -36,12 +40,67 @@ try {
 }
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Home">;
+type UserLocation = {
+  latitude: number;
+  longitude: number;
+};
+type NearbyParking = ParkingSummary & {
+  distanceKm?: number;
+};
 
 const ONE_TIME_DATES = ["Today", "Tomorrow", "May 17"];
 const PARKING_TYPES: { label: string; value: ParkingTypeFilter }[] = [
   { label: "All", value: "all" },
   { label: "Public", value: "PUBLIC" },
   { label: "Private", value: "PRIVATE" },
+];
+
+const DEFAULT_REGION: Region = {
+  latitude: 41.9981,
+  longitude: 21.4254,
+  latitudeDelta: 0.035,
+  longitudeDelta: 0.035,
+};
+
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#091b31" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8ca6c8" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#071426" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry",
+    stylers: [{ color: "#1e3a5f" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ color: "#0f2a47" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#0b2f35" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#173765" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#0c2544" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#214c99" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#061120" }],
+  },
 ];
 
 const formatDateValue = (value: Date) => {
@@ -79,9 +138,71 @@ const getDateRangeDays = (startDate: Date, endDate: Date) => {
   );
 };
 
+const hasValidCoordinate = (parking: ParkingSummary) => {
+  return (
+    Number.isFinite(Number(parking.latitude)) &&
+    Number.isFinite(Number(parking.longitude))
+  );
+};
+
+const getDistanceKm = (
+  start: UserLocation,
+  end: UserLocation
+) => {
+  const earthRadiusKm = 6371;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latDelta = toRadians(end.latitude - start.latitude);
+  const lonDelta = toRadians(end.longitude - start.longitude);
+  const startLat = toRadians(start.latitude);
+  const endLat = toRadians(end.latitude);
+  const a =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(startLat) *
+      Math.cos(endLat) *
+      Math.sin(lonDelta / 2) *
+      Math.sin(lonDelta / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusKm * c;
+};
+
+const getParkingCoordinate = (parking: ParkingSummary): UserLocation => ({
+  latitude: Number(parking.latitude),
+  longitude: Number(parking.longitude),
+});
+
+const getMarkerColor = (parking: ParkingSummary) => {
+  if (parking.availabilityStatus === "FULL") return "#ef4444";
+  if (parking.availabilityStatus === "LIMITED") return "#f59e0b";
+  return "#38bdf8";
+};
+
+const getAvailabilityLabel = (parking: ParkingSummary) => {
+  if (parking.availabilityStatus === "FULL") {
+    return "Full";
+  }
+
+  if (parking.availabilityStatus === "LIMITED") {
+    return parking.availableSpots <= 5 ? "Few spots left" : "Limited";
+  }
+
+  return "Available";
+};
+
+const formatDistance = (distanceKm?: number) => {
+  if (distanceKm === undefined) return "Popular nearby";
+  if (distanceKm < 1) return `${distanceKm.toFixed(1)} km away`;
+  return `${distanceKm.toFixed(1)} km away`;
+};
+
+const formatParkingType = (parkingType: ParkingSummary["parkingType"]) => {
+  return parkingType === "PRIVATE" ? "Covered" : "Open Air";
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const { formatPrice } = useCurrency();
+  const { height: windowHeight } = useWindowDimensions();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [mode, setMode] = React.useState<SearchMode>("one-time");
   const [where, setWhere] = React.useState("");
@@ -93,14 +214,22 @@ export default function HomeScreen() {
   const [activeDatePicker, setActiveDatePicker] = React.useState<
     "from" | "to" | null
   >(null);
-  const [nearbyParkings, setNearbyParkings] = React.useState<ParkingSummary[]>(
+  const [nearbyParkings, setNearbyParkings] = React.useState<NearbyParking[]>(
     []
   );
+  const [userLocation, setUserLocation] = React.useState<UserLocation | null>(
+    null
+  );
+  const [locationLabel, setLocationLabel] = React.useState("Skopje");
+  const [currentRegion, setCurrentRegion] =
+    React.useState<Region>(DEFAULT_REGION);
   const [isLoadingNearby, setIsLoadingNearby] = React.useState(false);
   const [nearbyError, setNearbyError] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [error, setError] = React.useState("");
+  const mapRef = React.useRef<MapView | null>(null);
   const pickerAnimation = React.useRef(new Animated.Value(0)).current;
+  const mapHeight = Math.min(350, Math.max(300, windowHeight * 0.42));
 
   React.useEffect(() => {
     if (!activeDatePicker) return;
@@ -121,13 +250,75 @@ export default function HomeScreen() {
       setNearbyError("");
 
       try {
-        const parkings = await parkingApi.getParkings();
-        const availableParkings = parkings
-          .filter((parking) => parking.availabilityStatus !== "FULL")
-          .slice(0, 3);
+        const [permission, parkings] = await Promise.all([
+          Location.requestForegroundPermissionsAsync(),
+          parkingApi.getParkings(),
+        ]);
+        let currentLocation: UserLocation | null = null;
+
+        if (permission.status === "granted") {
+          const position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+
+          currentLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
+          try {
+            const [place] = await Location.reverseGeocodeAsync(
+              currentLocation
+            );
+            const cityParts = [
+              place?.district || place?.subregion,
+              place?.city,
+            ].filter(Boolean);
+            const nextLabel = cityParts.length
+              ? Array.from(new Set(cityParts)).join(", ")
+              : place?.region || "Current area";
+
+            if (isMounted) {
+              setLocationLabel(nextLabel);
+            }
+          } catch (_err) {
+            if (isMounted) {
+              setLocationLabel("Current area");
+            }
+          }
+        }
+
+        const sortedParkings: NearbyParking[] = currentLocation
+          ? parkings
+              .filter(hasValidCoordinate)
+              .map((parking) => ({
+                ...parking,
+                distanceKm: getDistanceKm(currentLocation, {
+                  latitude: Number(parking.latitude),
+                  longitude: Number(parking.longitude),
+                }),
+              }))
+              .sort((left, right) => {
+                return (left.distanceKm ?? 0) - (right.distanceKm ?? 0);
+              })
+          : [...parkings].sort((left, right) => {
+              if (left.availabilityStatus === "FULL" && right.availabilityStatus !== "FULL") {
+                return 1;
+              }
+
+              if (left.availabilityStatus !== "FULL" && right.availabilityStatus === "FULL") {
+                return -1;
+              }
+
+              return right.availableSpots - left.availableSpots;
+            });
 
         if (isMounted) {
-          setNearbyParkings(availableParkings);
+          setUserLocation(currentLocation);
+          if (permission.status !== "granted") {
+            setLocationLabel("Skopje");
+          }
+          setNearbyParkings(sortedParkings.slice(0, 3));
         }
       } catch (_err) {
         if (isMounted) {
@@ -146,6 +337,57 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, []);
+
+  const mapRegion = React.useMemo<Region>(() => {
+    if (userLocation) {
+      return {
+        ...userLocation,
+        latitudeDelta: 0.022,
+        longitudeDelta: 0.022,
+      };
+    }
+
+    const firstParkingWithCoordinates = nearbyParkings.find(hasValidCoordinate);
+
+    if (firstParkingWithCoordinates) {
+      return {
+        ...getParkingCoordinate(firstParkingWithCoordinates),
+        latitudeDelta: 0.035,
+        longitudeDelta: 0.035,
+      };
+    }
+
+    return DEFAULT_REGION;
+  }, [nearbyParkings, userLocation]);
+
+  React.useEffect(() => {
+    setCurrentRegion(mapRegion);
+    mapRef.current?.animateToRegion(mapRegion, 250);
+  }, [mapRegion]);
+
+  const handleZoom = (factor: number) => {
+    const nextRegion = {
+      ...currentRegion,
+      latitudeDelta: Math.max(0.005, currentRegion.latitudeDelta * factor),
+      longitudeDelta: Math.max(0.005, currentRegion.longitudeDelta * factor),
+    };
+
+    setCurrentRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 220);
+  };
+
+  const handleRecenter = () => {
+    const nextRegion = userLocation
+      ? {
+          ...userLocation,
+          latitudeDelta: 0.022,
+          longitudeDelta: 0.022,
+        }
+      : mapRegion;
+
+    setCurrentRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 250);
+  };
 
   const handleDateChange = (
     event: DateTimePickerEvent,
@@ -264,48 +506,150 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={theme.Typography.subtitle}>Good evening</Text>
-          <Text
-            style={[theme.Typography.title, { marginTop: theme.Spacing.xs }]}
-          >
-            Iva
-          </Text>
-          <Text style={styles.headerSubtitle}>Find parking near you</Text>
+        <View style={styles.topHeader}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandIcon}>
+              {Feather ? (
+                <Feather name="map-pin" size={19} color="#fff" />
+              ) : (
+                <Text style={styles.brandFallback}>⌖</Text>
+              )}
+            </View>
+            <Text style={styles.heroTitle}>ParkPal</Text>
+          </View>
+
+          <View style={styles.heroActions}>
+            <View style={styles.locationPill}>
+              <View style={styles.locationDot} />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {locationLabel}
+              </Text>
+            </View>
+            <View style={styles.iconButton}>
+              {Feather ? (
+                <Feather name="bell" size={17} color="#c7d7ee" />
+              ) : (
+                <Text style={styles.iconButtonText}>!</Text>
+              )}
+            </View>
+          </View>
         </View>
 
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          style={({ pressed }) => [
-            styles.searchPill,
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          {Feather ? (
-            <Feather name="search" size={18} color={theme.Colors.primary} />
-          ) : (
-            <Text style={styles.searchFallback}>⌕</Text>
-          )}
-          <View style={styles.searchTextBlock}>
-            <Text style={styles.searchTitle}>Start your search</Text>
-            <Text style={styles.searchSubtitle}>
-              Choose where, when, and parking type
-            </Text>
+        <View style={[styles.hero, { height: mapHeight }]}>
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            initialRegion={mapRegion}
+            customMapStyle={DARK_MAP_STYLE}
+            showsUserLocation={Boolean(userLocation)}
+            showsMyLocationButton={false}
+            toolbarEnabled={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
+            onRegionChangeComplete={setCurrentRegion}
+          >
+            {nearbyParkings.filter(hasValidCoordinate).map((parking) => (
+              <Marker
+                key={parking.id}
+                coordinate={getParkingCoordinate(parking)}
+                onPress={() =>
+                  navigation.navigate("ParkingDetails", {
+                    parkingId: parking.id,
+                  })
+                }
+              >
+                <View
+                  style={[
+                    styles.mapPriceMarker,
+                    { backgroundColor: getMarkerColor(parking) },
+                  ]}
+                >
+                  <Text style={styles.mapPriceMarkerText}>
+                    {formatPrice(parking.pricePerHour)}
+                  </Text>
+                </View>
+              </Marker>
+            ))}
+          </MapView>
+          <View pointerEvents="none" style={styles.mapOverlay} />
+
+          <Pressable
+            onPress={() => setModalVisible(true)}
+            style={({ pressed }) => [
+              styles.searchPill,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
+            ]}
+          >
+            <View style={styles.searchIconWrap}>
+              {Feather ? (
+                <Feather name="search" size={22} color="#071b35" />
+              ) : (
+                <Text style={styles.searchFallback}>⌕</Text>
+              )}
+            </View>
+            <View style={styles.searchTextBlock}>
+              <Text style={styles.searchTitle} numberOfLines={1}>
+                Search address or location...
+              </Text>
+            </View>
+            <View style={styles.searchActionIcon}>
+              {Feather ? (
+                <Feather name="map-pin" size={19} color="#38bdf8" />
+              ) : (
+                <Text style={styles.searchActionText}>›</Text>
+              )}
+            </View>
+          </Pressable>
+
+          <View style={styles.mapControls}>
+            <Pressable
+              onPress={() => handleZoom(0.65)}
+              style={({ pressed }) => [
+                styles.mapControlButton,
+                pressed && { opacity: 0.84 },
+              ]}
+            >
+              <Text style={styles.mapControlText}>+</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleZoom(1.45)}
+              style={({ pressed }) => [
+                styles.mapControlButton,
+                pressed && { opacity: 0.84 },
+              ]}
+            >
+              <Text style={styles.mapControlText}>-</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleRecenter}
+              style={({ pressed }) => [
+                styles.locateButton,
+                pressed && { opacity: 0.86 },
+              ]}
+            >
+              {Feather ? (
+                <Feather name="navigation" size={22} color="#071426" />
+              ) : (
+                <Text style={styles.locateButtonText}>⌖</Text>
+              )}
+            </Pressable>
           </View>
-        </Pressable>
+        </View>
 
         <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>Closest parking near you</Text>
-              <Text style={styles.sectionSubtitle}>
-                Based on your current location
-              </Text>
+              <Text style={styles.sectionTitle}>Nearby Parking</Text>
             </View>
+            {!isLoadingNearby && nearbyParkings.length > 0 ? (
+              <Text style={styles.sectionCount}>
+                {nearbyParkings.length} spots found
+              </Text>
+            ) : null}
             {isLoadingNearby ? (
-              <ActivityIndicator size="small" color={theme.Colors.primary} />
+              <ActivityIndicator size="small" color="#38bdf8" />
             ) : null}
           </View>
 
@@ -554,39 +898,40 @@ function NearbyParkingCard({
   formatPrice,
   onPress,
 }: {
-  parking: ParkingSummary;
+  parking: NearbyParking;
   formatPrice: (amountInEur: number) => string;
   onPress: () => void;
 }) {
+  const label = getAvailabilityLabel(parking);
   const statusStyle =
-    parking.availabilityStatus === "AVAILABLE"
+    label === "Available"
       ? {
-          label: "Available",
+          label,
           backgroundColor: "rgba(89,165,117,0.12)",
           color: theme.Colors.secondaryGreen,
         }
-      : parking.availabilityStatus === "LIMITED"
+      : label === "Limited" || label === "Few spots left"
         ? {
-            label: "Limited",
+            label,
             backgroundColor: "rgba(245,158,11,0.13)",
             color: "#b45309",
           }
         : {
-            label: "Full",
+            label,
             backgroundColor: "rgba(239,68,68,0.1)",
             color: theme.Colors.error,
           };
 
   const availabilityText =
     parking.availabilityStatus === "FULL"
-      ? "No spots available"
+      ? "Full"
       : parking.availabilityStatus === "LIMITED"
-        ? `Only ${parking.availableSpots} spot${
-            parking.availableSpots === 1 ? "" : "s"
-          } left`
-        : `${parking.availableSpots} spot${
-            parking.availableSpots === 1 ? "" : "s"
-          } available`;
+        ? `${parking.availableSpots} free`
+        : `${parking.availableSpots} free`;
+  const progressWidth = `${Math.max(
+    4,
+    Math.min(100, 100 - parking.occupancyPercentage)
+  )}%` as DimensionValue;
 
   return (
     <Pressable
@@ -596,33 +941,53 @@ function NearbyParkingCard({
         pressed && { opacity: 0.86 },
       ]}
     >
-      <View style={styles.nearbyCardTop}>
-        <View style={styles.nearbyTitleBlock}>
-          <Text style={styles.nearbyName} numberOfLines={1}>
-            {parking.name}
-          </Text>
-          <Text style={styles.nearbyDistance} numberOfLines={1}>
-            {parking.city} · nearby
+      <View style={styles.nearbyCardContent}>
+        <View style={styles.nearbyCardTop}>
+          <View style={styles.nearbyTitleBlock}>
+            <Text style={styles.nearbyName} numberOfLines={1}>
+              {parking.name}
+            </Text>
+            <Text style={styles.nearbyDistance} numberOfLines={1}>
+              {formatDistance(parking.distanceKm)} · {formatParkingType(parking.parkingType)} · ★ 4.8
+            </Text>
+          </View>
+          <Text style={styles.nearbyPrice}>
+            {formatPrice(parking.pricePerHour)}/hr
           </Text>
         </View>
-        <View
-          style={[
-            styles.nearbyBadge,
-            { backgroundColor: statusStyle.backgroundColor },
-          ]}
-        >
-          <Text style={[styles.nearbyBadgeText, { color: statusStyle.color }]}>
-            {statusStyle.label}
-          </Text>
+
+        <View style={styles.nearbyBottomRow}>
+          <View style={styles.availabilityTrack}>
+            <View
+              style={[
+                styles.availabilityFill,
+                {
+                  width: progressWidth,
+                  backgroundColor:
+                    parking.availabilityStatus === "FULL"
+                      ? "#ef4444"
+                      : parking.availabilityStatus === "LIMITED"
+                        ? "#f59e0b"
+                        : "#08d6a3",
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.nearbyAvailability}>{availabilityText}</Text>
+          <View
+            style={[
+              styles.nearbyBadge,
+              { backgroundColor: statusStyle.backgroundColor },
+            ]}
+          >
+            <Text style={[styles.nearbyBadgeText, { color: statusStyle.color }]}>
+              {statusStyle.label}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.nearbyMetaRow}>
-        <Text style={styles.nearbyAvailability}>{availabilityText}</Text>
-        <Text style={styles.nearbyPrice}>
-          {formatPrice(parking.pricePerHour)}/hr
-        </Text>
-      </View>
+      <Text style={styles.nearbyChevron}>›</Text>
     </Pressable>
   );
 }
@@ -699,64 +1064,270 @@ function ChipGroup({
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: theme.Spacing.xl * 2 },
-  header: { paddingVertical: theme.Spacing.sm },
-  headerSubtitle: {
-    ...theme.Typography.body,
-    color: theme.Colors.textSecondary,
-    marginTop: theme.Spacing.xs,
+  screen: {
+    backgroundColor: "#071426",
+    padding: 0,
+  },
+  container: {
+    flexGrow: 1,
+    paddingBottom: theme.Spacing.sm,
+    backgroundColor: "#071426",
+  },
+  topHeader: {
+    minHeight: 68,
+    paddingHorizontal: theme.Spacing.md,
+    paddingTop: theme.Spacing.sm,
+    paddingBottom: theme.Spacing.sm,
+    backgroundColor: "#071426",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hero: {
+    paddingHorizontal: theme.Spacing.md,
+    backgroundColor: "#08182d",
+    overflow: "hidden",
+  },
+  mapOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(3,13,29,0.12)",
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  brandIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563eb",
+    marginRight: theme.Spacing.sm,
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  brandFallback: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  heroEyebrow: {
+    ...theme.Typography.caption,
+    color: "#86a8cf",
+    fontWeight: "700",
+  },
+  heroTitle: {
+    color: "#f8fbff",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  heroActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: theme.Spacing.sm,
+  },
+  locationPill: {
+    minHeight: 40,
+    maxWidth: 150,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.24)",
+    backgroundColor: "rgba(18,38,69,0.88)",
+    paddingHorizontal: theme.Spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#20d7a6",
+    marginRight: theme.Spacing.xs,
+  },
+  locationText: {
+    color: "#c7d7ee",
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: theme.Spacing.sm,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.18)",
+    backgroundColor: "rgba(18,38,69,0.88)",
+  },
+  iconButtonText: {
+    color: "#c7d7ee",
+    fontWeight: "800",
   },
   searchPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.Colors.surface,
-    borderRadius: 999,
+    backgroundColor: "#f8fafc",
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: theme.Colors.border,
+    borderColor: "rgba(255,255,255,0.62)",
     paddingHorizontal: theme.Spacing.md,
-    paddingVertical: theme.Spacing.md,
-    marginTop: theme.Spacing.md,
+    paddingVertical: 7,
+    marginTop: theme.Spacing.lg,
+    marginHorizontal: 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 10,
+    zIndex: 2,
+  },
+  searchIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchFallback: {
-    color: theme.Colors.primary,
+    color: "#071b35",
     fontSize: 20,
     fontWeight: "700",
   },
-  searchTextBlock: { marginLeft: theme.Spacing.sm, flex: 1 },
-  searchTitle: { ...theme.Typography.body, fontWeight: "700" },
-  searchSubtitle: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    marginTop: 2,
+  searchTextBlock: { marginLeft: theme.Spacing.md, flex: 1 },
+  searchTitle: {
+    color: "#8a9ab3",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  searchActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#06213d",
+  },
+  searchActionText: {
+    color: "#eaf7ff",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  mapPriceMarker: {
+    minWidth: 56,
+    paddingHorizontal: theme.Spacing.sm,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  mapPriceMarkerText: {
+    color: "#061120",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mapControls: {
+    position: "absolute",
+    right: theme.Spacing.md,
+    bottom: theme.Spacing.md,
+    alignItems: "center",
+    zIndex: 2,
+  },
+  mapControlButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: theme.Spacing.sm,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.18)",
+    backgroundColor: "rgba(8,24,45,0.9)",
+  },
+  mapControlText: {
+    color: "#f8fbff",
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: "900",
+  },
+  locateButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#38bdf8",
+    shadowColor: "#38bdf8",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  locateButtonText: {
+    color: "#071426",
+    fontSize: 22,
+    fontWeight: "700",
   },
   nearbySection: {
-    marginTop: theme.Spacing.xl,
+    paddingTop: theme.Spacing.lg,
+    paddingHorizontal: theme.Spacing.md,
+    backgroundColor: "#071426",
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: theme.Spacing.sm,
+    marginBottom: theme.Spacing.md,
   },
-  sectionTitle: { ...theme.Typography.subtitle },
+  sectionTitle: {
+    color: "#f8fbff",
+    fontSize: 24,
+    fontWeight: "800",
+  },
   sectionSubtitle: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#86a8cf",
+    fontSize: 13,
+    fontWeight: "600",
     marginTop: 2,
+  },
+  sectionCount: {
+    color: "#86a8cf",
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: theme.Spacing.md,
   },
   nearbyList: {
     gap: theme.Spacing.sm,
   },
   nearbyCard: {
-    backgroundColor: theme.Colors.surface,
-    borderRadius: theme.Radius.lg,
+    minHeight: 118,
+    backgroundColor: "#12243f",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: theme.Colors.border,
-    padding: theme.Spacing.md,
+    borderColor: "rgba(148,171,207,0.14)",
+    paddingHorizontal: theme.Spacing.md,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.24,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  nearbyCardContent: {
+    flex: 1,
   },
   nearbyCardTop: {
     flexDirection: "row",
@@ -768,44 +1339,65 @@ const styles = StyleSheet.create({
     paddingRight: theme.Spacing.sm,
   },
   nearbyName: {
-    ...theme.Typography.body,
-    fontWeight: "700",
+    color: "#f8fbff",
+    fontSize: 16,
+    fontWeight: "800",
   },
   nearbyDistance: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    marginTop: 2,
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: theme.Spacing.sm,
   },
   nearbyBadge: {
     borderRadius: 999,
-    paddingHorizontal: theme.Spacing.sm,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: theme.Spacing.sm,
   },
   nearbyBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "800",
   },
-  nearbyMetaRow: {
+  nearbyBottomRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: theme.Spacing.sm,
+    marginTop: 12,
+  },
+  availabilityTrack: {
+    flex: 1,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(12,45,77,0.86)",
+    overflow: "hidden",
+  },
+  availabilityFill: {
+    height: "100%",
+    borderRadius: 999,
   },
   nearbyAvailability: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textPrimary,
-    fontWeight: "700",
-    flex: 1,
-    paddingRight: theme.Spacing.sm,
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "800",
+    minWidth: 58,
+    textAlign: "right",
+    marginLeft: theme.Spacing.sm,
   },
   nearbyPrice: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    fontWeight: "700",
+    color: "#38bdf8",
+    fontSize: 15,
+    fontWeight: "900",
+    marginLeft: theme.Spacing.sm,
+  },
+  nearbyChevron: {
+    color: "#86a8cf",
+    fontSize: 30,
+    fontWeight: "300",
+    marginLeft: theme.Spacing.md,
   },
   emptyText: {
     ...theme.Typography.body,
-    color: theme.Colors.textSecondary,
+    color: "#86a8cf",
   },
   modalOverlay: {
     flex: 1,

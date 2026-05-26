@@ -1,5 +1,5 @@
 import React from "react";
-import { Text } from "react-native";
+import { Text, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
@@ -73,8 +73,11 @@ export default function AppTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: theme.Colors.primary,
-        tabBarInactiveTintColor: theme.Colors.textSecondary,
+        tabBarActiveTintColor: "#38bdf8",
+        tabBarInactiveTintColor: "#86a8cf",
+        tabBarStyle: styles.tabBar,
+        tabBarItemStyle: styles.tabBarItem,
+        tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ color, size }) => {
           const nameMap: Record<string, string> = {
             HomeTab: "home-outline",
@@ -83,7 +86,7 @@ export default function AppTabs() {
           };
           const iconName = nameMap[route.name] || "ellipse";
           if (Ionicons)
-            return <Ionicons name={iconName} size={size} color={color} />;
+            return <Ionicons name={iconName} size={size + 2} color={color} />;
           return <Text style={{ color, fontSize: size }}>•</Text>;
         },
       })}
@@ -106,3 +109,27 @@ export default function AppTabs() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    height: 76,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: "#08182d",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(148,171,207,0.12)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  tabBarItem: {
+    paddingVertical: 4,
+  },
+  tabBarLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+});
