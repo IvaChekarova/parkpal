@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
 import SectionTitle from "../components/SectionTitle";
+import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
 import type { RootStackParamList } from "../navigation/types";
 import { reservationApi, Reservation } from "../services/reservationApi";
@@ -137,6 +138,7 @@ export default function ReservationsScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const { formatPrice } = useCurrency();
   const [reservations, setReservations] = React.useState<Reservation[]>([]);
   const [selectedType, setSelectedType] =
     React.useState<ReservationTypeTab>("ONE_TIME");
@@ -275,7 +277,7 @@ export default function ReservationsScreen() {
             {formatDate(item.startTime)} • {formatDuration(item.durationMinutes)}
           </Text>
           <Text style={theme.Typography.subtitle}>
-            €{item.pricing.totalPrice.toFixed(2)}
+            {formatPrice(item.pricing.totalPrice)}
           </Text>
         </View>
 

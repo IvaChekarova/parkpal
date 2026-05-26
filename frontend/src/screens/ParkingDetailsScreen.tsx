@@ -23,6 +23,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import theme from "../theme";
+import { useCurrency } from "../context/CurrencyContext";
 import type { RootStackParamList, SearchData } from "../navigation/types";
 import { parkingApi, ParkingDetails } from "../services/parkingApi";
 import { reservationApi, ReservationType } from "../services/reservationApi";
@@ -173,6 +174,7 @@ export default function ParkingDetailsScreen() {
   const search = route.params?.search as SearchData | undefined;
   const legacyParking = route.params?.parking;
   const { token } = useAuth();
+  const { formatPrice } = useCurrency();
   const [parking, setParking] = React.useState<ParkingDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(Boolean(parkingId));
   const [isReserving, setIsReserving] = React.useState(false);
@@ -718,7 +720,7 @@ export default function ParkingDetailsScreen() {
             <View style={styles.rightBlock}>
               <Text style={theme.Typography.subtitle}>Price</Text>
               <Text style={theme.Typography.title}>
-                €{data.price.toFixed(2)}/hr
+                {formatPrice(data.price)}/hr
               </Text>
               <Text style={[theme.Typography.caption, styles.muted]}>
                 {data.distance}
@@ -886,13 +888,13 @@ export default function ParkingDetailsScreen() {
                     <View style={styles.summaryRow}>
                       <Text style={styles.reserveMuted}>Daily estimate</Text>
                       <Text style={theme.Typography.body}>
-                        €{dailyPrice.toFixed(2)}
+                        {formatPrice(dailyPrice)}
                       </Text>
                     </View>
                     <View style={styles.summaryRow}>
                       <Text style={styles.reserveMuted}>Calculation</Text>
                       <Text style={theme.Typography.body}>
-                        €{data.price.toFixed(2)}/hr × 8h
+                        {formatPrice(data.price)}/hr × 8h
                       </Text>
                     </View>
                   </>
@@ -901,7 +903,7 @@ export default function ParkingDetailsScreen() {
                     <View style={styles.summaryRow}>
                       <Text style={styles.reserveMuted}>Price per hour</Text>
                       <Text style={theme.Typography.body}>
-                        €{data.price.toFixed(2)}
+                        {formatPrice(data.price)}
                       </Text>
                     </View>
                     <View style={styles.summaryRow}>
@@ -913,7 +915,7 @@ export default function ParkingDetailsScreen() {
                 <View style={styles.summaryRow}>
                   <Text style={theme.Typography.subtitle}>Estimated total</Text>
                   <Text style={theme.Typography.title}>
-                    €{estimatedTotal.toFixed(2)}
+                    {formatPrice(estimatedTotal)}
                   </Text>
                 </View>
               </View>

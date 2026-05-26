@@ -18,6 +18,7 @@ import MapView, { Marker, Region } from "react-native-maps";
 import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useAuth } from "../context/AuthContext";
+import { useCurrency } from "../context/CurrencyContext";
 import {
   parkingApi,
   ParkingDetails,
@@ -63,6 +64,7 @@ export default function SearchResultsScreen() {
   const initialResults = (route.params?.results ?? []) as ParkingSummary[];
   const search = route.params?.search as SearchData | undefined;
   const { token } = useAuth();
+  const { formatPrice } = useCurrency();
   const mapRef = React.useRef<MapView | null>(null);
   const listRef = React.useRef<FlatList<ParkingSummary> | null>(null);
   const [results, setResults] = React.useState<ParkingSummary[]>(initialResults);
@@ -262,7 +264,7 @@ export default function SearchResultsScreen() {
 
           <View style={styles.metaRow}>
             <Text style={styles.availabilityText}>{availabilityText}</Text>
-            <Text style={styles.price}>€{item.pricePerHour.toFixed(2)}/hr</Text>
+            <Text style={styles.price}>{formatPrice(item.pricePerHour)}/hr</Text>
           </View>
 
           <Text style={[styles.detailsLink, isFull && styles.detailsLinkDisabled]}>
@@ -321,7 +323,7 @@ export default function SearchResultsScreen() {
                   ]}
                 >
                   <Text style={styles.priceMarkerText}>
-                    €{item.pricePerHour.toFixed(2)}/hr
+                    {formatPrice(item.pricePerHour)}/hr
                   </Text>
                 </View>
               </Marker>
@@ -347,7 +349,7 @@ export default function SearchResultsScreen() {
               {selectedParking.availabilityStatus === "FULL"
                 ? "No spots available"
                 : `${selectedParking.availableSpots} spots available`}{" "}
-              · €{selectedParking.pricePerHour.toFixed(2)}/hr
+              · {formatPrice(selectedParking.pricePerHour)}/hr
             </Text>
           </Pressable>
         ) : null}

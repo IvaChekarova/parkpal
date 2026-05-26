@@ -18,6 +18,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import ScreenWrapper from "../components/ScreenWrapper";
+import { useCurrency } from "../context/CurrencyContext";
 import { parkingApi, ParkingSummary } from "../services/parkingApi";
 import theme from "../theme";
 import type {
@@ -80,6 +81,7 @@ const getDateRangeDays = (startDate: Date, endDate: Date) => {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const { formatPrice } = useCurrency();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [mode, setMode] = React.useState<SearchMode>("one-time");
   const [where, setWhere] = React.useState("");
@@ -319,6 +321,7 @@ export default function HomeScreen() {
                 <NearbyParkingCard
                   key={parking.id}
                   parking={parking}
+                  formatPrice={formatPrice}
                   onPress={() =>
                     navigation.navigate("ParkingDetails", {
                       parkingId: parking.id,
@@ -548,9 +551,11 @@ export default function HomeScreen() {
 
 function NearbyParkingCard({
   parking,
+  formatPrice,
   onPress,
 }: {
   parking: ParkingSummary;
+  formatPrice: (amountInEur: number) => string;
   onPress: () => void;
 }) {
   const statusStyle =
@@ -615,7 +620,7 @@ function NearbyParkingCard({
       <View style={styles.nearbyMetaRow}>
         <Text style={styles.nearbyAvailability}>{availabilityText}</Text>
         <Text style={styles.nearbyPrice}>
-          €{parking.pricePerHour.toFixed(2)}/hr
+          {formatPrice(parking.pricePerHour)}/hr
         </Text>
       </View>
     </Pressable>

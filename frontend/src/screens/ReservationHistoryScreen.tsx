@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useAuth } from "../context/AuthContext";
+import { useCurrency } from "../context/CurrencyContext";
 import type { RootStackParamList } from "../navigation/types";
 import { reservationApi, Reservation } from "../services/reservationApi";
 import theme from "../theme";
@@ -92,6 +93,7 @@ const paymentStyle = (status?: ReservationPaymentStatus) => {
 export default function ReservationHistoryScreen() {
   const navigation = useNavigation<NavProp>();
   const { token } = useAuth();
+  const { formatPrice } = useCurrency();
   const [history, setHistory] = React.useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -201,7 +203,7 @@ export default function ReservationHistoryScreen() {
                     {formatDuration(item.durationMinutes)}
                   </Text>
                   <Text style={theme.Typography.subtitle}>
-                    €{item.pricing.totalPrice.toFixed(2)}
+                    {formatPrice(item.pricing.totalPrice)}
                   </Text>
                 </View>
 

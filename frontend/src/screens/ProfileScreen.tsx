@@ -17,12 +17,16 @@ import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
 import SectionTitle from "../components/SectionTitle";
 import Card from "../components/Card";
+import {
+  SupportedCurrency,
+  useCurrency,
+} from "../context/CurrencyContext";
 import { getAbsoluteProfileImageUrl, userApi } from "../services/userApi";
 
 type ModalType = "language" | "currency" | "notifications" | "support" | "privacy" | null;
 
 const languages = ["English", "Македонски"];
-const currencies = ["EUR", "MKD", "USD"];
+const currencies: SupportedCurrency[] = ["EUR", "MKD", "USD"];
 
 const formatRole = (role?: string) => {
   if (!role) return "Driver";
@@ -47,8 +51,8 @@ const getInitial = (name?: string | null) => {
 
 export default function ProfileScreen() {
   const { logout, token, updateUser, user } = useAuth();
+  const { selectedCurrency, setSelectedCurrency } = useCurrency();
   const [language, setLanguage] = React.useState("English");
-  const [currency, setCurrency] = React.useState("EUR");
   const [activeModal, setActiveModal] = React.useState<ModalType>(null);
   const [reservationReminders, setReservationReminders] = React.useState(true);
   const [availabilityUpdates, setAvailabilityUpdates] = React.useState(false);
@@ -69,7 +73,7 @@ export default function ProfileScreen() {
 
   const actions = [
     { key: "Language", value: language, modal: "language" as const },
-    { key: "Currency", value: currency, modal: "currency" as const },
+    { key: "Currency", value: selectedCurrency, modal: "currency" as const },
     { key: "Notifications", modal: "notifications" as const },
     { key: "Support", modal: "support" as const },
     { key: "Privacy & Terms", modal: "privacy" as const },
@@ -262,15 +266,16 @@ export default function ProfileScreen() {
       >
         <Text style={styles.modalTitle}>Select currency</Text>
         <Text style={styles.modalBody}>
-          Currency preference is local for now. Prices are not converted yet.
+          Prices update across ParkPal for display only. Reservations remain
+          stored in EUR.
         </Text>
         {currencies.map((item) => (
           <SelectionRow
             key={item}
             label={item}
-            selected={currency === item}
+            selected={selectedCurrency === item}
             onPress={() => {
-              setCurrency(item);
+              void setSelectedCurrency(item);
               setActiveModal(null);
             }}
           />

@@ -7,6 +7,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import theme from "../theme";
+import { useCurrency } from "../context/CurrencyContext";
 import type { RootStackParamList } from "../navigation/types";
 
 type NavProp = NativeStackNavigationProp<
@@ -18,6 +19,7 @@ type RouteProps = RouteProp<RootStackParamList, "ReservationConfirm">;
 export default function ReservationConfirmScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProps>();
+  const { formatPrice } = useCurrency();
   const parking = route.params?.parking ?? {
     name: "Central Parking",
     address: "12 Main St",
@@ -57,7 +59,7 @@ export default function ReservationConfirmScreen() {
           <View style={styles.row}>
             <Text style={theme.Typography.caption}>Price</Text>
             <Text style={theme.Typography.body}>
-              €{parking.pricePerHour.toFixed(2)}/hr
+              {formatPrice(parking.pricePerHour)}/hr
             </Text>
           </View>
 
@@ -68,7 +70,7 @@ export default function ReservationConfirmScreen() {
 
           <View style={styles.row}>
             <Text style={theme.Typography.caption}>Estimated total</Text>
-            <Text style={theme.Typography.title}>€{estimated.toFixed(2)}</Text>
+            <Text style={theme.Typography.title}>{formatPrice(estimated)}</Text>
           </View>
         </Card>
 
