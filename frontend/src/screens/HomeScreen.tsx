@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -19,8 +20,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Region } from "react-native-maps";
 
-import Button from "../components/Button";
-import Input from "../components/Input";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useCurrency } from "../context/CurrencyContext";
 import { parkingApi, ParkingSummary } from "../services/parkingApi";
@@ -48,7 +47,6 @@ type NearbyParking = ParkingSummary & {
   distanceKm?: number;
 };
 
-const ONE_TIME_DATES = ["Today", "Tomorrow", "May 17"];
 const PARKING_TYPES: { label: string; value: ParkingTypeFilter }[] = [
   { label: "All", value: "all" },
   { label: "Public", value: "PUBLIC" },
@@ -206,13 +204,13 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = React.useState(false);
   const [mode, setMode] = React.useState<SearchMode>("one-time");
   const [where, setWhere] = React.useState("");
-  const [date, setDate] = React.useState("Today");
+  const [oneTimeDate, setOneTimeDate] = React.useState<Date | null>(null);
   const [fromDate, setFromDate] = React.useState<Date | null>(null);
   const [toDate, setToDate] = React.useState<Date | null>(null);
   const [parkingType, setParkingType] =
     React.useState<ParkingTypeFilter>("all");
   const [activeDatePicker, setActiveDatePicker] = React.useState<
-    "from" | "to" | null
+    "one-time" | "from" | "to" | null
   >(null);
   const [nearbyParkings, setNearbyParkings] = React.useState<NearbyParking[]>(
     []
@@ -227,6 +225,7 @@ export default function HomeScreen() {
   const [nearbyError, setNearbyError] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [attemptedSearch, setAttemptedSearch] = React.useState(false);
   const mapRef = React.useRef<MapView | null>(null);
   const pickerAnimation = React.useRef(new Animated.Value(0)).current;
   const mapHeight = Math.min(350, Math.max(300, windowHeight * 0.42));
@@ -401,6 +400,19 @@ export default function HomeScreen() {
     const normalizedDate = new Date(selectedDate);
     normalizedDate.setHours(0, 0, 0, 0);
 
+    if (activeDatePicker === "one-time") {
+      if (normalizedDate < startOfToday()) {
+        setError("Date cannot be in the past.");
+        setActiveDatePicker(null);
+        return;
+      }
+
+      setOneTimeDate(normalizedDate);
+      setActiveDatePicker(null);
+      setError("");
+      return;
+    }
+
     if (activeDatePicker === "from") {
       setFromDate(normalizedDate);
 
@@ -408,7 +420,7 @@ export default function HomeScreen() {
         setError("From date cannot be in the past.");
       } else if (toDate && toDate <= normalizedDate) {
         setToDate(null);
-        setError("Please select a to date after the from date.");
+        setError("");
       } else {
         setError("");
       }
@@ -428,45 +440,63 @@ export default function HomeScreen() {
     setActiveDatePicker(null);
   };
 
+  const getSearchValidationError = () => {
+    const today = startOfToday();
+
+    if (!where.trim()) {
+      return "Please enter a location.";
+    }
+
+    if (mode === "one-time") {
+      if (!oneTimeDate) {
+        return "Please select a date.";
+      }
+
+      if (oneTimeDate < today) {
+        return "Date cannot be in the past.";
+      }
+
+      return "";
+    }
+
+    if (!fromDate) {
+      return "Please select a from date.";
+    }
+
+    if (!toDate) {
+      return "Please select a to date.";
+    }
+
+    if (fromDate < today) {
+      return "From date cannot be in the past.";
+    }
+
+    if (toDate <= fromDate) {
+      return "To date must be after from date.";
+    }
+
+    const durationDays = getDateRangeDays(fromDate, toDate);
+
+    if (durationDays < 1) {
+      return "Long-term parking must be at least 1 day.";
+    }
+
+    if (durationDays > 30) {
+      return "Long-term parking can be up to 30 days.";
+    }
+
+    return "";
+  };
+
   const handleSearch = async () => {
     if (isSearching) return;
 
+    setAttemptedSearch(true);
     setError("");
+    const validationError = getSearchValidationError();
 
-    if (mode === "long-term") {
-      const today = startOfToday();
-
-      if (!fromDate) {
-        setError("Please select a from date.");
-        return;
-      }
-
-      if (!toDate) {
-        setError("Please select a to date.");
-        return;
-      }
-
-      if (fromDate < today) {
-        setError("From date cannot be in the past.");
-        return;
-      }
-
-      if (toDate <= fromDate) {
-        setError("To date must be after from date.");
-        return;
-      }
-
-      const durationDays = getDateRangeDays(fromDate, toDate);
-
-      if (durationDays < 1) {
-        setError("Long-term reservations must be at least 1 day.");
-        return;
-      }
-
-      if (durationDays > 30) {
-        setError("Long-term reservations can be up to 30 days.");
-        return;
-      }
+    if (validationError) {
+      return;
     }
 
     setIsSearching(true);
@@ -487,7 +517,10 @@ export default function HomeScreen() {
           mode,
           location: where.trim(),
           parkingType: selectedParkingType,
-          date: mode === "one-time" ? date : undefined,
+          date:
+            mode === "one-time" && oneTimeDate
+              ? formatDisplayDate(oneTimeDate)
+              : undefined,
           fromDate:
             mode === "long-term" && fromDate
               ? formatDateValue(fromDate)
@@ -504,6 +537,10 @@ export default function HomeScreen() {
       setIsSearching(false);
     }
   };
+
+  const visibleError = attemptedSearch
+    ? getSearchValidationError() || error
+    : error;
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -576,7 +613,11 @@ export default function HomeScreen() {
           <View pointerEvents="none" style={styles.mapOverlay} />
 
           <Pressable
-            onPress={() => setModalVisible(true)}
+            onPress={() => {
+              setAttemptedSearch(false);
+              setError("");
+              setModalVisible(true);
+            }}
             style={({ pressed }) => [
               styles.searchPill,
               pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] },
@@ -703,7 +744,7 @@ export default function HomeScreen() {
             ]}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Search parking</Text>
+              <Text style={styles.modalTitle}>Start your search</Text>
               <Pressable
                 onPress={() => setModalVisible(false)}
                 style={styles.closeButton}
@@ -712,7 +753,7 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.modeRow}>
+            <View style={styles.progressModeRow}>
               {[
                 { label: "One-time", value: "one-time" as const },
                 { label: "Long-term", value: "long-term" as const },
@@ -724,14 +765,14 @@ export default function HomeScreen() {
                     setError("");
                   }}
                   style={[
-                    styles.modeButton,
-                    mode === item.value && styles.modeButtonActive,
+                    styles.progressModeButton,
+                    mode === item.value && styles.progressModeButtonActive,
                   ]}
                 >
                   <Text
                     style={[
-                      styles.modeText,
-                      mode === item.value && styles.modeTextActive,
+                      styles.progressModeText,
+                      mode === item.value && styles.progressModeTextActive,
                     ]}
                   >
                     {item.label}
@@ -740,48 +781,43 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Where</Text>
-            <Input
-              placeholder="City, street, or parking name"
-              value={where}
-              onChangeText={setWhere}
-              autoCapitalize="words"
-            />
-
-            {mode === "one-time" ? (
-              <>
-                <ChipGroup
-                  label="When"
-                  options={ONE_TIME_DATES}
-                  value={date}
-                  onChange={setDate}
+            <View style={styles.formCard}>
+              <Text style={styles.formCardTitle}>Where</Text>
+              <View style={styles.whereInlineInput}>
+                {Feather ? (
+                  <Feather name="search" size={16} color="#86a8cf" />
+                ) : null}
+                <TextInput
+                  style={styles.whereInputText}
+                  placeholderTextColor="#86a8cf"
+                  returnKeyType="search"
+                  placeholder="Search address or location"
+                  value={where}
+                  onChangeText={(value) => {
+                    setWhere(value);
+                    setError("");
+                  }}
+                  autoCapitalize="words"
                 />
-                <Text style={styles.fieldLabel}>Parking type</Text>
-                <View style={styles.chipRow}>
-                  {PARKING_TYPES.map((item) => (
-                    <Pressable
-                      key={item.value}
-                      onPress={() => setParkingType(item.value)}
-                      style={[
-                        styles.chip,
-                        parkingType === item.value && styles.chipActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          parkingType === item.value && styles.chipTextActive,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.longTermFields}>
+              </View>
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.formCardTitle}>
+                {mode === "long-term" ? "Dates" : "When"}
+              </Text>
+              {mode === "one-time" ? (
+                <DateField
+                  label="Parking date"
+                  value={formatDisplayDate(oneTimeDate)}
+                  isSelected
+                  onPress={() => {
+                    setError("");
+                    setActiveDatePicker("one-time");
+                  }}
+                />
+              ) : (
+                <>
                   <DateField
                     label="From date"
                     value={formatDisplayDate(fromDate)}
@@ -800,37 +836,73 @@ export default function HomeScreen() {
                       setActiveDatePicker("to");
                     }}
                   />
-                </View>
-                <View style={styles.privateNote}>
-                  <Text style={styles.privateNoteText}>
-                    Long-term parking searches private parking only.
+                </>
+              )}
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.formCardTitle}>Type</Text>
+              {mode === "long-term" ? (
+                <View style={styles.privateOnlyCard}>
+                  <Text style={styles.privateOnlyTitle}>
+                    Private parking only
+                  </Text>
+                  <Text style={styles.privateOnlyText}>
+                    Long-term searches automatically use private parking.
                   </Text>
                 </View>
-              </>
-            )}
+              ) : (
+                <View style={styles.typeOptionRow}>
+                  {PARKING_TYPES.map((item) => (
+                    <Pressable
+                      key={item.value}
+                      onPress={() => {
+                        setParkingType(item.value);
+                        setError("");
+                      }}
+                      style={[
+                        styles.typeOption,
+                        parkingType === item.value && styles.typeOptionActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.typeOptionText,
+                          parkingType === item.value &&
+                            styles.typeOptionTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={{ height: theme.Spacing.md }} />
-            <Button
-              title={
-                isSearching
-                  ? "Searching..."
-                  : mode === "long-term"
-                    ? "Search private parking"
-                    : "Search parking"
-              }
-              disabled={isSearching}
-              onPress={handleSearch}
-              style={styles.searchButton}
-            />
-            {isSearching ? (
-              <ActivityIndicator
-                color={theme.Colors.primary}
-                style={{ marginTop: theme.Spacing.sm }}
-              />
+            {visibleError ? (
+              <Text style={styles.errorText}>{visibleError}</Text>
             ) : null}
 
+            <Pressable
+              disabled={isSearching}
+              onPress={handleSearch}
+              style={({ pressed }) => [
+                styles.formSearchButton,
+                pressed && { transform: [{ scale: 0.985 }] },
+                isSearching && { opacity: 0.72 },
+              ]}
+            >
+              {isSearching ? (
+                <ActivityIndicator size="small" color="#071426" />
+              ) : (
+                <Text style={styles.formSearchButtonText}>
+                  {mode === "long-term"
+                    ? "Search private parking"
+                    : "Search parking"}
+                </Text>
+              )}
+            </Pressable>
           </View>
 
           {activeDatePicker ? (
@@ -863,13 +935,17 @@ export default function HomeScreen() {
                 ]}
               >
                 <Text style={styles.datePickerTitle}>
-                  {activeDatePicker === "from"
-                    ? "Select from date"
-                    : "Select to date"}
+                  {activeDatePicker === "one-time"
+                    ? "Select parking date"
+                    : activeDatePicker === "from"
+                      ? "Select from date"
+                      : "Select to date"}
                 </Text>
                 <DateTimePicker
                   value={
-                    activeDatePicker === "from"
+                    activeDatePicker === "one-time"
+                      ? oneTimeDate ?? startOfToday()
+                      : activeDatePicker === "from"
                       ? fromDate ?? startOfToday()
                       : toDate ?? (fromDate ? addDays(fromDate, 1) : startOfToday())
                   }
@@ -1023,42 +1099,6 @@ function DateField({
         </Text>
         <Text style={styles.dateFieldIcon}>⌄</Text>
       </Pressable>
-    </View>
-  );
-}
-
-function ChipGroup({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (nextValue: string) => void;
-}) {
-  return (
-    <View style={styles.chipGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.chipRow}>
-        {options.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => onChange(option)}
-            style={[styles.chip, value === option && styles.chipActive]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                value === option && styles.chipTextActive,
-              ]}
-            >
-              {option}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
     </View>
   );
 }
@@ -1412,9 +1452,16 @@ const styles = StyleSheet.create({
   searchModal: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: theme.Colors.surface,
-    borderRadius: theme.Radius.lg,
-    padding: theme.Spacing.lg,
+    backgroundColor: "#08182d",
+    borderRadius: 28,
+    padding: theme.Spacing.md,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.16)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.34,
+    shadowRadius: 32,
+    elevation: 24,
   },
   searchModalDimmed: {
     opacity: 0.22,
@@ -1425,19 +1472,144 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  modalTitle: { ...theme.Typography.subtitle },
+  modalTitle: {
+    color: "#f8fbff",
+    fontSize: 20,
+    fontWeight: "800",
+  },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.Colors.background,
+    backgroundColor: "rgba(148,171,207,0.12)",
   },
   closeText: {
-    color: theme.Colors.textSecondary,
+    color: "#c7d7ee",
     fontSize: 22,
     lineHeight: 24,
+  },
+  progressModeRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(5,18,34,0.9)",
+    borderRadius: 999,
+    padding: 4,
+    marginTop: theme.Spacing.md,
+    marginBottom: theme.Spacing.md,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.12)",
+  },
+  progressModeButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  progressModeButtonActive: {
+    backgroundColor: "#38bdf8",
+  },
+  progressModeText: {
+    color: "#86a8cf",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  progressModeTextActive: {
+    color: "#071426",
+  },
+  formCard: {
+    borderRadius: 22,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
+    padding: theme.Spacing.md,
+    marginBottom: theme.Spacing.sm,
+  },
+  formCardTitle: {
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: theme.Spacing.sm,
+  },
+  whereInlineInput: {
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.18)",
+    backgroundColor: "rgba(8,24,45,0.92)",
+    paddingHorizontal: theme.Spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  whereInputText: {
+    flex: 1,
+    color: "#f8fbff",
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 9,
+    marginLeft: theme.Spacing.sm,
+  },
+  typeOptionRow: {
+    flexDirection: "row",
+    gap: theme.Spacing.sm,
+  },
+  typeOption: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.18)",
+    backgroundColor: "rgba(8,24,45,0.92)",
+  },
+  typeOptionActive: {
+    backgroundColor: "#38bdf8",
+    borderColor: "#38bdf8",
+  },
+  typeOptionText: {
+    color: "#c7d7ee",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  typeOptionTextActive: {
+    color: "#071426",
+  },
+  privateOnlyCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.24)",
+    backgroundColor: "rgba(56,189,248,0.1)",
+    padding: theme.Spacing.md,
+  },
+  privateOnlyTitle: {
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  privateOnlyText: {
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  formSearchButton: {
+    minHeight: 52,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#38bdf8",
+    marginTop: theme.Spacing.xs,
+    shadowColor: "#38bdf8",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  formSearchButtonText: {
+    color: "#071426",
+    fontSize: 15,
+    fontWeight: "900",
   },
   modeRow: {
     flexDirection: "row",
@@ -1461,7 +1633,7 @@ const styles = StyleSheet.create({
   modeTextActive: { color: theme.Colors.primary },
   fieldLabel: {
     ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#f8fbff",
     fontWeight: "700",
     marginBottom: theme.Spacing.xs,
     marginTop: theme.Spacing.sm,
