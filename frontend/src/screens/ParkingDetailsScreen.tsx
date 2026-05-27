@@ -24,6 +24,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Button from "../components/Button";
 import theme from "../theme";
 import { useCurrency } from "../context/CurrencyContext";
+import { useAppLocation } from "../context/AppLocationContext";
 import type { RootStackParamList, SearchData } from "../navigation/types";
 import { parkingApi, ParkingDetails } from "../services/parkingApi";
 import { reservationApi, ReservationType } from "../services/reservationApi";
@@ -181,7 +182,7 @@ export default function ParkingDetailsScreen() {
   const parkingId = route.params?.parkingId;
   const search = route.params?.search as SearchData | undefined;
   const legacyParking = route.params?.parking;
-  const locationLabel = route.params?.locationLabel ?? search?.location ?? "Skopje";
+  const { locationLabel } = useAppLocation();
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
   const [parking, setParking] = React.useState<ParkingDetails | null>(null);
@@ -668,7 +669,7 @@ export default function ParkingDetailsScreen() {
           </View>
         ) : (
           <>
-            <AppHeader locationLabel={locationLabel} />
+            <AppHeader />
             <View style={styles.hero}>
               <View style={styles.heroImageLayer}>
                 <View style={styles.parkingStripeRow}>

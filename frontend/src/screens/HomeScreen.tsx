@@ -23,6 +23,7 @@ import MapView, { Marker, Region } from "react-native-maps";
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useCurrency } from "../context/CurrencyContext";
+import { useAppLocation } from "../context/AppLocationContext";
 import { parkingApi, ParkingSummary } from "../services/parkingApi";
 import theme from "../theme";
 import type {
@@ -201,6 +202,7 @@ const formatParkingType = (parkingType: ParkingSummary["parkingType"]) => {
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const { formatPrice } = useCurrency();
+  const { locationLabel, setLocationLabel } = useAppLocation();
   const { height: windowHeight } = useWindowDimensions();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [mode, setMode] = React.useState<SearchMode>("one-time");
@@ -219,7 +221,6 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = React.useState<UserLocation | null>(
     null
   );
-  const [locationLabel, setLocationLabel] = React.useState("Skopje");
   const [currentRegion, setCurrentRegion] =
     React.useState<Region>(DEFAULT_REGION);
   const [isLoadingNearby, setIsLoadingNearby] = React.useState(false);
@@ -546,7 +547,7 @@ export default function HomeScreen() {
   return (
     <ScreenWrapper style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
-        <AppHeader locationLabel={locationLabel} />
+        <AppHeader />
 
         <View style={[styles.hero, { height: mapHeight }]}>
           <MapView

@@ -13,9 +13,8 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Card from "../components/Card";
+import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
-import SectionTitle from "../components/SectionTitle";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
 import type { RootStackParamList } from "../navigation/types";
@@ -50,28 +49,28 @@ const statusLabel = (status: Reservation["status"]) => {
 const statusStyle = (status: Reservation["status"]) => {
   if (status === "ACTIVE") {
     return {
-      backgroundColor: "rgba(89,165,117,0.12)",
-      color: theme.Colors.secondaryGreen,
+      backgroundColor: "rgba(8,214,163,0.13)",
+      color: "#08d6a3",
     };
   }
 
   if (status === "COMPLETED") {
     return {
-      backgroundColor: "rgba(2,6,23,0.06)",
-      color: theme.Colors.textSecondary,
+      backgroundColor: "rgba(148,171,207,0.12)",
+      color: "#8ca6c8",
     };
   }
 
   if (status === "CANCELLED") {
     return {
-      backgroundColor: "rgba(239,68,68,0.1)",
-      color: theme.Colors.error,
+      backgroundColor: "rgba(239,68,68,0.13)",
+      color: "#f87171",
     };
   }
 
   return {
-    backgroundColor: "rgba(59,130,246,0.08)",
-    color: "#3b82f6",
+    backgroundColor: "rgba(56,189,248,0.13)",
+    color: "#38bdf8",
   };
 };
 
@@ -84,8 +83,8 @@ const paymentLabel = (status?: ReservationPaymentStatus) => {
 const paymentStyle = (status?: ReservationPaymentStatus) => {
   if (status === "PAID") {
     return {
-      backgroundColor: "rgba(89,165,117,0.12)",
-      color: theme.Colors.secondaryGreen,
+      backgroundColor: "rgba(8,214,163,0.13)",
+      color: "#08d6a3",
     };
   }
 
@@ -97,8 +96,8 @@ const paymentStyle = (status?: ReservationPaymentStatus) => {
   }
 
   return {
-    backgroundColor: "rgba(59,130,246,0.08)",
-    color: "#3b82f6",
+    backgroundColor: "rgba(245,158,11,0.14)",
+    color: "#f59e0b",
   };
 };
 
@@ -233,23 +232,18 @@ export default function ReservationsScreen() {
     const isUpcoming = item.status === "UPCOMING";
     const isCancellable = canCancelReservation(item);
     const isCancelling = cancellingId === item.id;
-    const cardStyle = StyleSheet.flatten([
-      styles.card,
-      important ? styles.cardImportant : {},
-    ]);
 
     return (
-      <Card style={cardStyle}>
+      <View style={[styles.card, important && styles.cardImportant]}>
         <View style={styles.rowTop}>
           <View style={{ flex: 1 }}>
             <Text
-              style={
-                important ? theme.Typography.title : theme.Typography.subtitle
-              }
+              style={styles.cardTitle}
+              numberOfLines={1}
             >
               {item.parking.name}
             </Text>
-            <Text style={[theme.Typography.caption, styles.muted]}>
+            <Text style={styles.cardAddress} numberOfLines={2}>
               {item.parking.address}, {item.parking.city}
             </Text>
           </View>
@@ -273,10 +267,10 @@ export default function ReservationsScreen() {
         </View>
 
         <View style={styles.rowBottom}>
-          <Text style={styles.muted}>
+          <Text style={styles.cardMeta}>
             {formatDate(item.startTime)} • {formatDuration(item.durationMinutes)}
           </Text>
-          <Text style={theme.Typography.subtitle}>
+          <Text style={styles.cardPrice}>
             {formatPrice(item.pricing.totalPrice)}
           </Text>
         </View>
@@ -320,52 +314,58 @@ export default function ReservationsScreen() {
             </Pressable>
           </View>
         ) : null}
-      </Card>
+      </View>
     );
   }
 
   return (
-    <ScreenWrapper>
-      <View style={styles.headerRow}>
-        <SectionTitle>Your reservations</SectionTitle>
-        <Pressable
-          onPress={() => navigation.navigate("ReservationHistory")}
-          style={styles.historyLink}
-        >
-          <Text style={styles.historyText}>View history</Text>
-        </Pressable>
-      </View>
+    <ScreenWrapper style={styles.screen}>
+      <AppHeader />
+      <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.screenTitle}>Your reservations</Text>
+          <Pressable
+            onPress={() => navigation.navigate("ReservationHistory")}
+            style={({ pressed }) => [
+              styles.historyLink,
+              pressed && { opacity: 0.82 },
+            ]}
+          >
+            <Text style={styles.historyText}>View history</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.segmentedControl}>
-        {RESERVATION_TYPE_TABS.map((item) => {
-          const isActive = selectedType === item.value;
+        <View style={styles.segmentedControl}>
+          {RESERVATION_TYPE_TABS.map((item) => {
+            const isActive = selectedType === item.value;
 
-          return (
-            <Pressable
-              key={item.value}
-              onPress={() => setSelectedType(item.value)}
-              style={({ pressed }) => [
-                styles.segmentButton,
-                isActive && styles.segmentButtonActive,
-                pressed && { opacity: 0.86 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  isActive && styles.segmentTextActive,
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => setSelectedType(item.value)}
+                style={({ pressed }) => [
+                  styles.segmentButton,
+                  isActive && styles.segmentButtonActive,
+                  pressed && { opacity: 0.86 },
                 ]}
               >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.segmentText,
+                    isActive && styles.segmentTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {isLoading ? (
         <View style={styles.empty}>
-          <ActivityIndicator color={theme.Colors.primary} />
+          <ActivityIndicator color="#38bdf8" />
         </View>
       ) : error ? (
         <View style={styles.empty}>
@@ -383,7 +383,7 @@ export default function ReservationsScreen() {
           ) : (
             <View>
               <Text style={styles.sectionTitle}>Active</Text>
-              <Text style={styles.sectionEmptyText}>No active reservations</Text>
+              <EmptyState title="No active reservations" />
             </View>
           )}
 
@@ -397,7 +397,7 @@ export default function ReservationsScreen() {
           ) : (
             <View style={{ marginTop: theme.Spacing.md }}>
               <Text style={styles.sectionTitle}>Upcoming</Text>
-              <Text style={styles.sectionEmptyText}>No upcoming reservations</Text>
+              <EmptyState title="No upcoming reservations" />
             </View>
           )}
         </ScrollView>
@@ -412,6 +412,17 @@ export default function ReservationsScreen() {
         />
       ) : null}
     </ScreenWrapper>
+  );
+}
+
+function EmptyState({ title }: { title: string }) {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyIcon}>
+        <Text style={styles.emptyIconText}>P</Text>
+      </View>
+      <Text style={styles.sectionEmptyText}>{title}</Text>
+    </View>
   );
 }
 
@@ -474,60 +485,121 @@ function Toast({
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: "#071426",
+    padding: 0,
+  },
+  content: {
+    paddingHorizontal: theme.Spacing.md,
+    paddingTop: theme.Spacing.md,
+    backgroundColor: "#071426",
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  historyLink: { padding: theme.Spacing.xs },
-  historyText: { color: theme.Colors.primary, fontWeight: "600" },
+  screenTitle: {
+    color: "#f8fbff",
+    fontSize: 26,
+    fontWeight: "900",
+  },
+  historyLink: {
+    borderRadius: 999,
+    paddingHorizontal: theme.Spacing.sm,
+    paddingVertical: 7,
+    backgroundColor: "rgba(56,189,248,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.22)",
+  },
+  historyText: { color: "#38bdf8", fontWeight: "900", fontSize: 12 },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: theme.Colors.background,
-    borderRadius: theme.Radius.lg,
+    backgroundColor: "rgba(8,24,45,0.92)",
+    borderRadius: 999,
     padding: 4,
     marginTop: theme.Spacing.md,
     marginBottom: theme.Spacing.lg,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.12)",
   },
   segmentButton: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 40,
-    borderRadius: theme.Radius.md,
+    borderRadius: 999,
   },
   segmentButtonActive: {
-    backgroundColor: theme.Colors.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: "#38bdf8",
   },
   segmentText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    fontWeight: "700",
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "900",
   },
   segmentTextActive: {
-    color: theme.Colors.primary,
+    color: "#071426",
   },
   sectionTitle: {
-    ...theme.Typography.subtitle,
+    color: "#b8cbea",
+    fontSize: 14,
+    fontWeight: "900",
+    textTransform: "uppercase",
     marginBottom: theme.Spacing.sm,
   },
-  card: { marginBottom: theme.Spacing.sm },
-  listContent: { paddingBottom: theme.Spacing.xl * 2 },
-  cardImportant: { borderWidth: 1, borderColor: "rgba(20,43,108,0.06)" },
+  card: {
+    marginBottom: theme.Spacing.sm,
+    borderRadius: 24,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
+    padding: theme.Spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  listContent: {
+    paddingHorizontal: theme.Spacing.md,
+    paddingBottom: theme.Spacing.xl * 2,
+    backgroundColor: "#071426",
+  },
+  cardImportant: { borderColor: "rgba(56,189,248,0.28)" },
   rowTop: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.Spacing.xs,
+    alignItems: "flex-start",
+    marginBottom: theme.Spacing.sm,
+  },
+  cardTitle: {
+    color: "#f8fbff",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  cardAddress: {
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
   },
   rowBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: theme.Spacing.xs,
+  },
+  cardMeta: {
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "800",
+    flex: 1,
+    paddingRight: theme.Spacing.sm,
+  },
+  cardPrice: {
+    color: "#38bdf8",
+    fontSize: 17,
+    fontWeight: "900",
   },
   paymentRow: {
     flexDirection: "row",
@@ -540,7 +612,7 @@ const styles = StyleSheet.create({
   },
   paymentText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "900",
   },
   cancelRow: {
     alignItems: "flex-end",
@@ -555,39 +627,62 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   cancelButtonDisabled: {
-    borderColor: theme.Colors.border,
-    backgroundColor: theme.Colors.background,
+    borderColor: "rgba(148,171,207,0.14)",
+    backgroundColor: "rgba(148,171,207,0.08)",
   },
   cancelButtonText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.error,
-    fontWeight: "700",
+    color: "#f87171",
+    fontSize: 12,
+    fontWeight: "900",
   },
   cancelButtonTextDisabled: {
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
   },
-  muted: { ...theme.Typography.caption, color: theme.Colors.textSecondary },
   statusWrap: { marginLeft: theme.Spacing.sm },
   statusChip: {
     paddingHorizontal: theme.Spacing.sm,
     paddingVertical: 6,
-    borderRadius: theme.Radius.lg,
+    borderRadius: 999,
   },
-  statusText: { fontSize: 12, fontWeight: "600" },
-  empty: { alignItems: "center", marginTop: theme.Spacing.lg },
+  statusText: { fontSize: 12, fontWeight: "900" },
+  empty: {
+    alignItems: "center",
+    marginTop: theme.Spacing.lg,
+    backgroundColor: "#071426",
+  },
   emptyText: {
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
     marginTop: theme.Spacing.sm,
     textAlign: "center",
   },
-  sectionEmptyText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    backgroundColor: theme.Colors.surface,
+  emptyCard: {
+    minHeight: 112,
+    borderRadius: 22,
+    backgroundColor: "#10223f",
     borderWidth: 1,
-    borderColor: theme.Colors.border,
-    borderRadius: theme.Radius.md,
+    borderColor: "rgba(148,171,207,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
     padding: theme.Spacing.md,
+  },
+  emptyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(56,189,248,0.13)",
+    marginBottom: theme.Spacing.sm,
+  },
+  emptyIconText: {
+    color: "#38bdf8",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  sectionEmptyText: {
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "800",
   },
   toast: {
     position: "absolute",

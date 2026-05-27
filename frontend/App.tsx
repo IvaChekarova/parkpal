@@ -6,16 +6,19 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { AuthProvider } from "./src/context/AuthContext";
 import { CurrencyProvider } from "./src/context/CurrencyContext";
+import { AppLocationProvider } from "./src/context/AppLocationContext";
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <CurrencyProvider>
-          <NavigationContainer>
-            <RootNavigator />
-            <StatusBar style="auto" />
-          </NavigationContainer>
+          <AppLocationProvider>
+            <NavigationContainer>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </NavigationContainer>
+          </AppLocationProvider>
         </CurrencyProvider>
       </AuthProvider>
     </SafeAreaProvider>

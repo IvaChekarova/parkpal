@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppLocation } from "../context/AppLocationContext";
 import theme from "../theme";
 
 let Feather: any = null;
@@ -11,14 +12,14 @@ try {
 }
 
 type Props = {
-  locationLabel?: string;
   onNotificationPress?: () => void;
 };
 
 export default function AppHeader({
-  locationLabel = "Skopje",
   onNotificationPress,
 }: Props) {
+  const { locationLabel } = useAppLocation();
+
   return (
     <View style={styles.header}>
       <View style={styles.brandRow}>
