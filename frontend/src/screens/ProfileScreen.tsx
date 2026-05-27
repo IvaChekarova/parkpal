@@ -11,19 +11,32 @@ import {
   Switch,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useFocusEffect } from "@react-navigation/native";
+import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
-import Button from "../components/Button";
-import SectionTitle from "../components/SectionTitle";
-import Card from "../components/Card";
 import {
   SupportedCurrency,
   useCurrency,
 } from "../context/CurrencyContext";
+import { reservationApi } from "../services/reservationApi";
 import { getAbsoluteProfileImageUrl, userApi } from "../services/userApi";
 
+let Feather: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Feather = require("@expo/vector-icons").Feather;
+} catch (e) {
+  Feather = null;
+}
+
 type ModalType = "language" | "currency" | "notifications" | "support" | "privacy" | null;
+type SettingsAction = {
+  key: string;
+  value?: string;
+  modal?: Exclude<ModalType, null>;
+};
 
 const languages = ["English", "Македонски"];
 const currencies: SupportedCurrency[] = ["EUR", "MKD", "USD"];
@@ -49,6 +62,13 @@ const getInitial = (name?: string | null) => {
   return name?.trim().charAt(0).toUpperCase() || "P";
 };
 
+const getNotificationStatus = (
+  reservationReminders: boolean,
+  availabilityUpdates: boolean
+) => {
+  return reservationReminders || availabilityUpdates ? "On" : "Off";
+};
+
 export default function ProfileScreen() {
   const { logout, token, updateUser, user } = useAuth();
   const { selectedCurrency, setSelectedCurrency } = useCurrency();
@@ -57,7 +77,40 @@ export default function ProfileScreen() {
   const [reservationReminders, setReservationReminders] = React.useState(true);
   const [availabilityUpdates, setAvailabilityUpdates] = React.useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = React.useState(false);
+  const [reservationCount, setReservationCount] = React.useState<number | null>(
+    null
+  );
   const profileImageUri = getAbsoluteProfileImageUrl(user?.profileImageUrl);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+
+      const loadReservationCount = async () => {
+        if (!token) {
+          setReservationCount(null);
+          return;
+        }
+
+        try {
+          const reservations = await reservationApi.getMyReservations(token);
+          if (isMounted) {
+            setReservationCount(reservations.length);
+          }
+        } catch (_err) {
+          if (isMounted) {
+            setReservationCount(null);
+          }
+        }
+      };
+
+      void loadReservationCount();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [token])
+  );
 
   const handleLogout = () => {
     Alert.alert("Log out", "Are you sure you want to log out?", [
@@ -66,21 +119,23 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const accountInfo = [
-    { key: "Role", value: formatRole(user?.role) },
-    { key: "Member since", value: formatMemberSince(user?.createdAt) },
-  ];
-
-  const actions = [
-    { key: "Language", value: language, modal: "language" as const },
+  const actions: SettingsAction[] = [
+    {
+      key: "Notifications",
+      value: getNotificationStatus(reservationReminders, availabilityUpdates),
+      modal: "notifications" as const,
+    },
     { key: "Currency", value: selectedCurrency, modal: "currency" as const },
-    { key: "Notifications", modal: "notifications" as const },
+    { key: "Language", value: language, modal: "language" as const },
+    { key: "Privacy & Security", modal: "privacy" as const },
     { key: "Support", modal: "support" as const },
-    { key: "Privacy & Terms", modal: "privacy" as const },
+    { key: "Payment methods", value: "Coming soon" },
   ];
 
-  const handleActionPress = (action: (typeof actions)[number]) => {
-    setActiveModal(action.modal);
+  const handleActionPress = (action: SettingsAction) => {
+    if (action.modal) {
+      setActiveModal(action.modal);
+    }
   };
 
   const uploadProfileImage = async () => {
@@ -162,9 +217,10 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper style={styles.screen}>
+      <AppHeader />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.topSection}>
+        <View style={styles.profileCard}>
           <Pressable
             onPress={openAvatarOptions}
             disabled={isUpdatingPhoto}
@@ -179,63 +235,64 @@ export default function ProfileScreen() {
             ) : (
               <Text style={styles.avatarText}>{getInitial(user?.fullName)}</Text>
             )}
+            <View style={styles.editBadge}>
+              {Feather ? (
+                <Feather name="camera" size={14} color="#fff" />
+              ) : (
+                <Text style={styles.editBadgeText}>+</Text>
+              )}
+            </View>
           </Pressable>
-          <Text style={styles.photoHint}>
-            {isUpdatingPhoto ? "Updating photo..." : "Tap to change photo"}
-          </Text>
-          <Text
-            style={[theme.Typography.title, { marginTop: theme.Spacing.sm }]}
-          >
+          <Text style={styles.profileName}>
             {user?.fullName ?? "ParkPal user"}
           </Text>
           <Text style={styles.emailText}>{user?.email ?? "Signed in"}</Text>
         </View>
 
-        <View style={{ height: theme.Spacing.md }} />
+        <View style={styles.statsCard}>
+          <StatItem
+            label="Reservations"
+            value={reservationCount === null ? "—" : String(reservationCount)}
+          />
+          <View style={styles.statDivider} />
+          <StatItem label="Rating" value="New" />
+          <View style={styles.statDivider} />
+          <StatItem label="Role" value={formatRole(user?.role)} />
+        </View>
 
-        <SectionTitle>Account info</SectionTitle>
-        <Card style={styles.infoCard}>
-          {accountInfo.map((row, index) => (
-            <View
-              key={row.key}
-              style={[
-                styles.infoRow,
-                index === accountInfo.length - 1 && styles.lastRow,
-              ]}
-            >
-              <Text style={theme.Typography.caption}>{row.key}</Text>
-              <Text style={theme.Typography.body}>{row.value}</Text>
-            </View>
-          ))}
-        </Card>
-
-        <View style={{ height: theme.Spacing.md }} />
-
-        <SectionTitle>Actions</SectionTitle>
-        <Card style={styles.actionsCard}>
+        <Text style={styles.sectionLabel}>Settings</Text>
+        <View style={styles.actionsCard}>
           {actions.map((action) => (
             <Pressable
               key={action.key}
-              onPress={() => handleActionPress(action)}
+              onPress={() => {
+                handleActionPress(action);
+              }}
               style={({ pressed }) => [
                 styles.actionRow,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={theme.Typography.body}>{action.key}</Text>
+              <Text style={styles.actionText}>{action.key}</Text>
               <View style={styles.actionRight}>
                 {action.value ? (
                   <Text style={styles.actionValue}>{action.value}</Text>
                 ) : null}
-                <Text style={styles.chev}>›</Text>
+                {action.modal ? <Text style={styles.chev}>›</Text> : null}
               </View>
             </Pressable>
           ))}
-        </Card>
+        </View>
 
-        <View style={{ height: theme.Spacing.lg }} />
-
-        <Button title="Log out" variant="outline" onPress={handleLogout} />
+        <Pressable
+          onPress={handleLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
 
         <View style={{ height: theme.Spacing.xl }} />
       </ScrollView>
@@ -345,6 +402,17 @@ export default function ProfileScreen() {
   );
 }
 
+function StatItem({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.statItem}>
+      <Text style={styles.statValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 function CenteredModal({
   visible,
   onClose,
@@ -386,7 +454,7 @@ function SelectionRow({
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={theme.Typography.body}>{label}</Text>
+      <Text style={styles.selectionLabel}>{label}</Text>
       {selected ? <Text style={styles.selectedMark}>✓</Text> : null}
     </Pressable>
   );
@@ -403,15 +471,15 @@ function ToggleRow({
 }) {
   return (
     <View style={styles.toggleRow}>
-      <Text style={theme.Typography.body}>{label}</Text>
+      <Text style={styles.selectionLabel}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onValueChange}
         trackColor={{
-          false: theme.Colors.border,
-          true: "rgba(89,165,117,0.35)",
+          false: "rgba(148,171,207,0.22)",
+          true: "rgba(8,214,163,0.35)",
         }}
-        thumbColor={value ? theme.Colors.secondaryGreen : "#f4f4f5"}
+        thumbColor={value ? "#08d6a3" : "#c7d7ee"}
       />
     </View>
   );
@@ -450,90 +518,197 @@ function ModalCloseButton({
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: theme.Spacing.xl },
-  topSection: { alignItems: "center", paddingVertical: theme.Spacing.sm },
+  screen: {
+    backgroundColor: "#071426",
+    padding: 0,
+  },
+  container: {
+    paddingHorizontal: theme.Spacing.md,
+    paddingTop: theme.Spacing.md,
+    paddingBottom: theme.Spacing.xl,
+    backgroundColor: "#071426",
+  },
+  profileCard: {
+    alignItems: "center",
+    paddingVertical: theme.Spacing.lg,
+    paddingHorizontal: theme.Spacing.md,
+    borderRadius: 28,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
+  },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: theme.Colors.primary,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#2563eb",
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "rgba(56,189,248,0.22)",
   },
   avatarImage: {
     width: "100%",
     height: "100%",
+    borderRadius: 48,
   },
   avatarText: {
     color: "#fff",
-    fontSize: 34,
-    fontWeight: "700",
+    fontSize: 36,
+    fontWeight: "900",
   },
-  photoHint: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    marginTop: theme.Spacing.xs,
+  editBadge: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563eb",
+    borderWidth: 2,
+    borderColor: "#10223f",
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  editBadgeText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  profileName: {
+    color: "#f8fbff",
+    fontSize: 24,
+    fontWeight: "900",
+    marginTop: theme.Spacing.md,
   },
   emailText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "700",
     marginTop: theme.Spacing.xs,
   },
-  infoCard: { marginTop: theme.Spacing.sm },
-  infoRow: {
+  statsCard: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: theme.Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.Colors.border,
+    alignItems: "center",
+    marginTop: theme.Spacing.md,
+    borderRadius: 24,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
+    paddingVertical: theme.Spacing.md,
   },
-  lastRow: {
-    borderBottomWidth: 0,
+  statItem: {
+    flex: 1,
+    alignItems: "center",
   },
-  actionsCard: { marginTop: theme.Spacing.sm },
+  statValue: {
+    color: "#f8fbff",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  statLabel: {
+    color: "#8ca6c8",
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "rgba(148,171,207,0.16)",
+  },
+  sectionLabel: {
+    color: "#b8cbea",
+    fontSize: 13,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    marginTop: theme.Spacing.lg,
+    marginBottom: theme.Spacing.sm,
+  },
+  actionsCard: {
+    borderRadius: 24,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
+    overflow: "hidden",
+  },
   actionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: theme.Spacing.sm,
+    minHeight: 54,
+    paddingHorizontal: theme.Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(148,171,207,0.09)",
+  },
+  actionText: {
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: "800",
   },
   actionRight: {
     flexDirection: "row",
     alignItems: "center",
   },
   actionValue: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "800",
     marginRight: theme.Spacing.xs,
   },
-  chev: { color: theme.Colors.textSecondary, fontSize: 18 },
+  chev: { color: "#8ca6c8", fontSize: 20, fontWeight: "700" },
+  logoutButton: {
+    minHeight: 52,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.22)",
+    backgroundColor: "rgba(239,68,68,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: theme.Spacing.lg,
+  },
+  logoutText: {
+    color: "#f87171",
+    fontSize: 15,
+    fontWeight: "900",
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(2,6,23,0.34)",
+    backgroundColor: "rgba(2,6,23,0.72)",
     alignItems: "center",
     justifyContent: "center",
     padding: theme.Spacing.lg,
   },
   modalCard: {
-    backgroundColor: theme.Colors.surface,
-    borderRadius: theme.Radius.lg,
+    backgroundColor: "#10223f",
+    borderRadius: 24,
     padding: theme.Spacing.md,
     width: "100%",
     maxWidth: 360,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.16)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.24,
     shadowRadius: 18,
     elevation: 8,
   },
   modalTitle: {
-    ...theme.Typography.subtitle,
+    color: "#f8fbff",
+    fontSize: 18,
+    fontWeight: "900",
     textAlign: "center",
   },
   modalBody: {
-    ...theme.Typography.body,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
     textAlign: "center",
     marginTop: theme.Spacing.sm,
     marginBottom: theme.Spacing.md,
@@ -544,15 +719,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: theme.Spacing.sm,
     paddingHorizontal: theme.Spacing.sm,
-    borderRadius: theme.Radius.md,
+    borderRadius: 16,
   },
   selectionRowSelected: {
-    backgroundColor: "rgba(20,43,108,0.06)",
+    backgroundColor: "rgba(56,189,248,0.12)",
+  },
+  selectionLabel: {
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: "800",
   },
   selectedMark: {
-    color: theme.Colors.primary,
+    color: "#38bdf8",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "900",
   },
   toggleRow: {
     flexDirection: "row",
@@ -561,31 +741,36 @@ const styles = StyleSheet.create({
     paddingVertical: theme.Spacing.sm,
   },
   supportEmailBox: {
-    backgroundColor: theme.Colors.background,
-    borderRadius: theme.Radius.md,
+    backgroundColor: "rgba(7,20,38,0.78)",
+    borderRadius: 18,
     padding: theme.Spacing.md,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.14)",
   },
   supportEmail: {
-    ...theme.Typography.body,
-    color: theme.Colors.primary,
-    fontWeight: "700",
+    color: "#38bdf8",
+    fontSize: 15,
+    fontWeight: "900",
   },
   policySection: {
     paddingVertical: theme.Spacing.sm,
   },
   policyTitle: {
-    ...theme.Typography.body,
-    fontWeight: "700",
+    color: "#f8fbff",
+    fontSize: 14,
+    fontWeight: "900",
   },
   policyText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
     marginTop: 3,
   },
   modalDivider: {
     height: 1,
-    backgroundColor: theme.Colors.border,
+    backgroundColor: "rgba(148,171,207,0.14)",
     marginTop: theme.Spacing.sm,
     marginBottom: theme.Spacing.xs,
   },
@@ -595,8 +780,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.Radius.md,
   },
   cancelText: {
-    color: theme.Colors.primary,
+    color: "#38bdf8",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "900",
   },
 });
