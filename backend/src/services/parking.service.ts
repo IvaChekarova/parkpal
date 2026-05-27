@@ -69,14 +69,10 @@ export const getAvailabilitySummary = (
   const outOfServiceSpots = spots.filter(
     (spot) => spot.status === ParkingSpotStatus.OUT_OF_SERVICE
   ).length;
-  const occupancyPercentage =
-    totalSpots > 0
-      ? Math.round(((totalSpots - availableSpots) / totalSpots) * 100)
-      : 0;
   const availabilityStatus =
     availableSpots === 0
       ? "FULL"
-      : occupancyPercentage >= 80
+      : availableSpots <= 5
         ? "LIMITED"
         : "AVAILABLE";
 
@@ -86,7 +82,6 @@ export const getAvailabilitySummary = (
     occupiedSpots,
     reservedSpots,
     outOfServiceSpots,
-    occupancyPercentage,
     availabilityStatus,
   };
 };
@@ -106,7 +101,6 @@ const mapParkingSummary = (parking: ParkingSummaryRow) => {
     totalSpots: availability.totalSpots,
     availableSpots: availability.availableSpots,
     occupiedSpots: availability.occupiedSpots,
-    occupancyPercentage: availability.occupancyPercentage,
     availabilityStatus: availability.availabilityStatus,
   };
 };
@@ -197,7 +191,6 @@ export const getParkingById = async (id: string) => {
     totalSpots: availability.totalSpots,
     availableSpots: availability.availableSpots,
     occupiedSpots: availability.occupiedSpots,
-    occupancyPercentage: availability.occupancyPercentage,
     availabilityStatus: availability.availabilityStatus,
     availabilitySummary: {
       available: availability.availableSpots,

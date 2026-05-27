@@ -25,10 +25,11 @@ export type RootStackParamList = {
   };
   ParkingDetails:
     | undefined
-    | {
-        parkingId?: string;
-        search?: SearchData;
-        parking?: {
+     | {
+         parkingId?: string;
+         search?: SearchData;
+         locationLabel?: string;
+         parking?: {
           name: string;
           address: string;
           price: number;

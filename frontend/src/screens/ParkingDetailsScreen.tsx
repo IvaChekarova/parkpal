@@ -19,8 +19,8 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import theme from "../theme";
 import { useCurrency } from "../context/CurrencyContext";
@@ -28,6 +28,14 @@ import type { RootStackParamList, SearchData } from "../navigation/types";
 import { parkingApi, ParkingDetails } from "../services/parkingApi";
 import { reservationApi, ReservationType } from "../services/reservationApi";
 import { useAuth } from "../context/AuthContext";
+
+let Feather: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Feather = require("@expo/vector-icons").Feather;
+} catch (e) {
+  Feather = null;
+}
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "ParkingDetails">;
 
@@ -173,6 +181,7 @@ export default function ParkingDetailsScreen() {
   const parkingId = route.params?.parkingId;
   const search = route.params?.search as SearchData | undefined;
   const legacyParking = route.params?.parking;
+  const locationLabel = route.params?.locationLabel ?? search?.location ?? "Skopje";
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
   const [parking, setParking] = React.useState<ParkingDetails | null>(null);
@@ -181,7 +190,6 @@ export default function ParkingDetailsScreen() {
   const [isSimulating, setIsSimulating] = React.useState(false);
   const [error, setError] = React.useState("");
   const [reservationError, setReservationError] = React.useState("");
-  const [reserveModalVisible, setReserveModalVisible] = React.useState(false);
   const [selectedStartTime, setSelectedStartTime] = React.useState<string | null>(
     null
   );
@@ -240,8 +248,6 @@ export default function ParkingDetailsScreen() {
         address: `${parking.address}, ${parking.city}`,
         spotsAvailable: parking.availableSpots,
         totalSpots: parking.totalSpots,
-        occupiedSpots: parking.occupiedSpots,
-        occupancyPercentage: parking.occupancyPercentage,
         availabilityStatus: parking.availabilityStatus,
         latitude: parking.latitude,
         longitude: parking.longitude,
@@ -263,8 +269,6 @@ export default function ParkingDetailsScreen() {
           address: legacyParking.address,
           spotsAvailable: 0,
           totalSpots: 0,
-          occupiedSpots: 0,
-          occupancyPercentage: 0,
           availabilityStatus: "AVAILABLE" as const,
           latitude: null,
           longitude: null,
@@ -505,21 +509,6 @@ export default function ParkingDetailsScreen() {
     };
   };
 
-  const handleReserve = async () => {
-    setReservationError("");
-    setAttemptedConfirm(false);
-    setTimeTouched({ start: false, end: false });
-    setSelectedStartTime(null);
-    setSelectedEndTime(null);
-
-    if (isLongTermReservation && (!search?.fromDate || !search?.toDate)) {
-      setReservationError("Please select a valid long-term date range.");
-      return;
-    }
-
-    setReserveModalVisible(true);
-  };
-
   const simulateUpdate = async () => {
     if (!token || !parkingId || isSimulating) return;
 
@@ -611,7 +600,10 @@ export default function ParkingDetailsScreen() {
       );
 
       setToast({ message: "Reservation confirmed", variant: "success" });
-      setReserveModalVisible(false);
+      setSelectedStartTime(null);
+      setSelectedEndTime(null);
+      setAttemptedConfirm(false);
+      setTimeTouched({ start: false, end: false });
       const updatedParking = await parkingApi.getParkingById(parkingId);
       setParking(updatedParking);
     } catch (err) {
@@ -642,19 +634,24 @@ export default function ParkingDetailsScreen() {
       : durationHours * data.price
     : 0;
 
-  return (
-    <ScreenWrapper>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            accessibilityLabel="Back"
-          >
-            <Text style={styles.backIcon}>←</Text>
-          </Pressable>
-        </View>
+  const featureChips = Array.from(
+    new Set([
+      "Verified",
+      parking?.parkingType === "PRIVATE" ? "Private" : "Public",
+      parking?.parkingType === "PRIVATE" ? "Limited" : "Easy",
+    ])
+  ).slice(0, 3);
+  const durationLabel = isLongTermReservation
+    ? `${longTermDays} day${longTermDays === 1 ? "" : "s"}`
+    : durationHours > 0
+      ? `${Math.floor(durationHours)}h${
+          durationHours % 1 ? ` ${Math.round((durationHours % 1) * 60)}m` : ""
+        }`
+      : "Select times";
 
+  return (
+    <ScreenWrapper style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container}>
         {isLoading ? (
           <View style={styles.stateContainer}>
             <ActivityIndicator color={theme.Colors.primary} />
@@ -671,153 +668,220 @@ export default function ParkingDetailsScreen() {
           </View>
         ) : (
           <>
-            <Text
-              style={theme.Typography.title}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {data.name}
-            </Text>
-
-            <Text
-              style={[theme.Typography.body, styles.address]}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {data.address}
-            </Text>
-
-            <Text style={styles.searchDateText}>
-              {search?.mode === "long-term" ? "Long-term" : "Selected date"}:{" "}
-              {getSearchDateLabel(search)}
-            </Text>
-
-        <View style={{ height: theme.Spacing.md }} />
-
-        <Card>
-          <View style={styles.cardTopRow}>
-            <View style={styles.leftBlock}>
-              <Text style={theme.Typography.subtitle}>Availability</Text>
-              {data.availabilityStatus === "AVAILABLE" ? (
-                <>
-                  <Text style={styles.availabilityNumber}>
-                    {data.spotsAvailable}
-                  </Text>
-                  <Text style={styles.availabilityLabel}>
-                    {availabilityPrimaryText}
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.availabilityMessage}>
-                  {availabilityPrimaryText}
-                </Text>
-              )}
-              <Text style={styles.availabilityMeta}>
-                {data.occupancyPercentage}% occupied
-              </Text>
-            </View>
-
-            <View style={styles.rightBlock}>
-              <Text style={theme.Typography.subtitle}>Price</Text>
-              <Text style={theme.Typography.title}>
-                {formatPrice(data.price)}/hr
-              </Text>
-              <Text style={[theme.Typography.caption, styles.muted]}>
-                {data.distance}
-              </Text>
-            </View>
-          </View>
-
-          <View style={{ height: theme.Spacing.sm }} />
-
-          <View style={styles.cardBottomRow}>
-            <View
-              style={[
-                styles.statusChip,
-                { backgroundColor: availabilityBadge.backgroundColor },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: availabilityBadge.dotColor },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusLabel,
-                  { color: availabilityBadge.color },
-                ]}
+            <AppHeader locationLabel={locationLabel} />
+            <View style={styles.hero}>
+              <View style={styles.heroImageLayer}>
+                <View style={styles.parkingStripeRow}>
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <View key={index} style={styles.parkingStripe} />
+                  ))}
+                </View>
+                <View style={styles.carRow}>
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.carShape,
+                        index % 2 === 0 && styles.carShapeLight,
+                      ]}
+                    />
+                  ))}
+                </View>
+                <View style={styles.heroLane} />
+                <View style={[styles.heroLane, styles.heroLaneSecond]} />
+                <View style={styles.heroGlow} />
+              </View>
+              <View style={styles.heroOverlay} />
+              <Pressable
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+                accessibilityLabel="Back"
               >
-                {availabilityBadge.label}
-              </Text>
+                <Text style={styles.backIcon}>←</Text>
+              </Pressable>
+              <View style={styles.heroContent}>
+                <View
+                  style={[
+                    styles.statusChip,
+                    { backgroundColor: availabilityBadge.backgroundColor },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: availabilityBadge.dotColor },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusLabel,
+                      { color: availabilityBadge.color },
+                    ]}
+                  >
+                    {availabilityBadge.label}
+                  </Text>
+                </View>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {data.name}
+                </Text>
+                <Text style={styles.heroAddress} numberOfLines={2}>
+                  ⌖ {data.address}
+                </Text>
+              </View>
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingText}>★ 4.8</Text>
+              </View>
             </View>
 
-            <View style={styles.hoursBlock}>
-              <Text style={[theme.Typography.caption, styles.muted]}>
-                Hours
-              </Text>
-              <Text style={theme.Typography.body}>{data.hours}</Text>
+            <View style={styles.content}>
+              <View style={styles.quickInfoGrid}>
+                <InfoTile
+                  label="Price"
+                  value={`${formatPrice(data.price)}/hr`}
+                  iconName="dollar-sign"
+                />
+                <InfoTile
+                  label="Available"
+                  value={
+                    data.availabilityStatus === "FULL"
+                      ? "Full"
+                      : `${data.spotsAvailable} spots`
+                  }
+                  iconName="truck"
+                />
+                <InfoTile
+                  label="Type"
+                  value={parking?.parkingType === "PRIVATE" ? "Covered" : "Open Air"}
+                  iconName="map-pin"
+                />
+              </View>
+
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Features</Text>
+                </View>
+                <View style={styles.amenitiesRow}>
+                  {featureChips.map((a: string) => (
+                    <View key={a} style={styles.amenityChip}>
+                      <Text style={styles.amenityText} numberOfLines={1}>
+                        {a}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.descriptionText}>{data.description}</Text>
+              </View>
+
+              <View style={styles.reservationCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Book your spot</Text>
+                  </View>
+                </View>
+
+                <View style={styles.timeGrid}>
+                  <TimeField
+                    label="Start time"
+                    value={selectedStartTime}
+                    placeholder="Select start"
+                    onPress={() => setActiveTimePicker("start")}
+                    disabled={startTimeOptions.length === 0}
+                  />
+                  <TimeField
+                    label="End time"
+                    value={selectedEndTime}
+                    placeholder={selectedStartTime ? "Select end" : "Start first"}
+                    onPress={() => setActiveTimePicker("end")}
+                    disabled={!selectedStartTime || endTimeOptions.length === 0}
+                  />
+                </View>
+
+                {startTimeOptions.length === 0 ? (
+                  <Text style={styles.reserveErrorText}>
+                    No available time slots for this date.
+                  </Text>
+                ) : (
+                  <Text style={styles.workingHoursText}>
+                    {isLongTermReservation
+                      ? `Start from ${formatTime(minStartDate)}. End within working hours.`
+                      : `Available ${formatTime(minStartDate)} - ${FALLBACK_WORKING_HOURS.closesAt}`}
+                  </Text>
+                )}
+
+                <View style={styles.priceSummary}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.reserveMuted}>Duration</Text>
+                    <Text style={styles.summaryValue}>{durationLabel}</Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.reserveMuted}>
+                      {isLongTermReservation ? "Daily estimate" : "Price per hour"}
+                    </Text>
+                    <Text style={styles.summaryValue}>
+                      {isLongTermReservation
+                        ? formatPrice(dailyPrice)
+                        : formatPrice(data.price)}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryTotalRow}>
+                    <Text style={styles.totalLabel}>Estimated total</Text>
+                    <Text style={styles.totalValue}>
+                      {formatPrice(estimatedTotal)}
+                    </Text>
+                  </View>
+                </View>
+
+                {shouldShowTimeError ? (
+                  <Text style={styles.reserveErrorText}>{timeValidationMessage}</Text>
+                ) : reservationError ? (
+                  <Text style={styles.reserveErrorText}>{reservationError}</Text>
+                ) : null}
+
+                <Pressable
+                  onPress={handleNavigate}
+                  style={({ pressed }) => [
+                    styles.viewMapButton,
+                    pressed && { opacity: 0.84 },
+                  ]}
+                >
+                  <Text style={styles.viewMapButtonText}>View on map</Text>
+                </Pressable>
+
+                <Pressable
+                  disabled={isReserving || !canConfirmReservation || !data.open}
+                  onPress={confirmReservation}
+                  style={({ pressed }) => [
+                    styles.reserveCta,
+                    (isReserving || !canConfirmReservation || !data.open) &&
+                      styles.reserveCtaDisabled,
+                    pressed && { transform: [{ scale: 0.99 }] },
+                  ]}
+                >
+                  {isReserving ? (
+                    <ActivityIndicator color="#071426" />
+                  ) : (
+                    <Text style={styles.reserveCtaText}>Reserve Spot</Text>
+                  )}
+                </Pressable>
+
+                {token ? (
+                  <Pressable
+                    disabled={isSimulating}
+                    onPress={simulateUpdate}
+                    style={({ pressed }) => [
+                      styles.simulateButton,
+                      pressed && { opacity: 0.82 },
+                    ]}
+                  >
+                    {isSimulating ? (
+                      <ActivityIndicator size="small" color="#38bdf8" />
+                    ) : (
+                      <Text style={styles.simulateText}>Simulate availability update</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-          </View>
-
-          {token ? (
-            <Pressable
-              disabled={isSimulating}
-              onPress={simulateUpdate}
-              style={({ pressed }) => [
-                styles.simulateButton,
-                pressed && { opacity: 0.82 },
-              ]}
-            >
-              {isSimulating ? (
-                <ActivityIndicator size="small" color={theme.Colors.primary} />
-              ) : (
-                <Text style={styles.simulateText}>Simulate update</Text>
-              )}
-            </Pressable>
-          ) : null}
-        </Card>
-
-        <View style={{ height: theme.Spacing.md }} />
-
-        <Text style={theme.Typography.subtitle}>About</Text>
-        <Text style={[theme.Typography.body, { marginTop: theme.Spacing.xs }]}>
-          {data.description}
-        </Text>
-
-        <View style={{ height: theme.Spacing.md }} />
-
-        <Text style={theme.Typography.subtitle}>Amenities</Text>
-        <View style={styles.amenitiesRow}>
-          {data.amenities.map((a: string) => (
-            <View key={a} style={styles.amenityChip}>
-              <Text style={styles.amenityText}>{a}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={{ height: theme.Spacing.lg }} />
-
-        <View style={styles.actionRow}>
-          <Button
-            title={isReserving ? "Reserving..." : "Reserve spot"}
-            disabled={isReserving || !data.open}
-            onPress={handleReserve}
-            style={styles.reserveButton}
-          />
-          <Button
-            title="Navigate"
-            variant="outline"
-            onPress={handleNavigate}
-            style={styles.navigateButton}
-          />
-        </View>
-        {reservationError ? (
-          <Text style={styles.reserveErrorText}>{reservationError}</Text>
-        ) : null}
-
-            <View style={{ height: theme.Spacing.xl }} />
           </>
         )}
       </ScrollView>
@@ -831,120 +895,12 @@ export default function ParkingDetailsScreen() {
         />
       ) : null}
 
-      {data ? (
-        <Modal
-          visible={reserveModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setReserveModalVisible(false)}
+      {data && activeTimePicker ? (
+        <Pressable
+          style={styles.timePickerOverlay}
+          onPress={() => setActiveTimePicker(null)}
         >
-          <Pressable
-            style={styles.reserveOverlay}
-            onPress={() => setReserveModalVisible(false)}
-          >
-            <Pressable style={styles.reserveModal}>
-              <Text style={styles.reserveTitle}>Reserve spot</Text>
-              <Text style={styles.reserveName}>{data.name}</Text>
-              <Text style={styles.reserveMuted}>{data.address}</Text>
-              <Text style={styles.reserveMuted}>{getSearchDateLabel(search)}</Text>
-
-              <View style={styles.modalDivider} />
-
-              <TimeField
-                label="Start time"
-                value={selectedStartTime}
-                placeholder="Select start time"
-                onPress={() => setActiveTimePicker("start")}
-                disabled={startTimeOptions.length === 0}
-              />
-              <TimeField
-                label="End time"
-                value={selectedEndTime}
-                placeholder={
-                  selectedStartTime ? "Select end time" : "Select start time first"
-                }
-                onPress={() => setActiveTimePicker("end")}
-                disabled={!selectedStartTime || endTimeOptions.length === 0}
-              />
-              {startTimeOptions.length === 0 ? (
-                <Text style={styles.reserveErrorText}>
-                  No available time slots for this date.
-                </Text>
-              ) : (
-                <Text style={styles.workingHoursText}>
-                  {isLongTermReservation
-                    ? `Start from ${formatTime(minStartDate)}. End within ${FALLBACK_WORKING_HOURS.opensAt} - ${FALLBACK_WORKING_HOURS.closesAt}.`
-                    : `Available ${formatTime(minStartDate)} - ${FALLBACK_WORKING_HOURS.closesAt}`}
-                </Text>
-              )}
-
-              <View style={styles.priceSummary}>
-                {isLongTermReservation ? (
-                  <>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.reserveMuted}>Days</Text>
-                      <Text style={theme.Typography.body}>{longTermDays}</Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.reserveMuted}>Daily estimate</Text>
-                      <Text style={theme.Typography.body}>
-                        {formatPrice(dailyPrice)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.reserveMuted}>Calculation</Text>
-                      <Text style={theme.Typography.body}>
-                        {formatPrice(data.price)}/hr × 8h
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.reserveMuted}>Price per hour</Text>
-                      <Text style={theme.Typography.body}>
-                        {formatPrice(data.price)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.reserveMuted}>Duration</Text>
-                      <Text style={theme.Typography.body}>{durationHours}h</Text>
-                    </View>
-                  </>
-                )}
-                <View style={styles.summaryRow}>
-                  <Text style={theme.Typography.subtitle}>Estimated total</Text>
-                  <Text style={theme.Typography.title}>
-                    {formatPrice(estimatedTotal)}
-                  </Text>
-                </View>
-              </View>
-
-              {shouldShowTimeError ? (
-                <Text style={styles.reserveErrorText}>{timeValidationMessage}</Text>
-              ) : reservationError ? (
-                <Text style={styles.reserveErrorText}>{reservationError}</Text>
-              ) : null}
-
-              <Button
-                title={isReserving ? "Confirming..." : "Confirm & Pay"}
-                disabled={isReserving || !canConfirmReservation}
-                onPress={confirmReservation}
-                style={styles.confirmButton}
-              />
-              <View style={{ height: theme.Spacing.sm }} />
-              <Button
-                title="Cancel"
-                variant="outline"
-                onPress={() => setReserveModalVisible(false)}
-              />
-            </Pressable>
-            {activeTimePicker ? (
-              <Pressable
-                style={styles.timePickerOverlay}
-                onPress={() => setActiveTimePicker(null)}
-              >
-                <Pressable style={styles.timePickerPopup}>
+          <Pressable style={styles.timePickerPopup}>
                   <Text style={styles.timePickerTitle}>
                     {activeTimePicker === "start"
                       ? "Select start time"
@@ -987,11 +943,8 @@ export default function ParkingDetailsScreen() {
                   ) : (
                     <Text style={styles.timeSlotEmpty}>{activeTimeMessage}</Text>
                   )}
-                </Pressable>
-              </Pressable>
-            ) : null}
           </Pressable>
-        </Modal>
+        </Pressable>
       ) : null}
     </ScreenWrapper>
   );
@@ -1032,6 +985,37 @@ function TimeField({
         </Text>
         <Text style={styles.timeFieldIcon}>⌄</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function InfoTile({
+  label,
+  value,
+  iconName,
+}: {
+  label: string;
+  value: string;
+  iconName?: string;
+}) {
+  return (
+    <View style={styles.infoTile}>
+      {iconName && Feather ? (
+        <View style={styles.infoTileIcon}>
+          <Feather name={iconName} size={17} color="#38bdf8" />
+        </View>
+      ) : iconName ? (
+        <Text style={styles.infoTileAccent}>•</Text>
+      ) : null}
+      <Text style={styles.infoTileLabel}>{label}</Text>
+      <Text
+        style={styles.infoTileValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -1095,19 +1079,224 @@ function Toast({
 }
 
 const styles = StyleSheet.create({
-  // make horizontal padding match HomeScreen (more edge-to-edge)
+  screen: {
+    backgroundColor: "#071426",
+    padding: 0,
+  },
   container: {
-    paddingTop: theme.Spacing.lg,
-    paddingHorizontal: theme.Spacing.md,
+    backgroundColor: "#071426",
     paddingBottom: theme.Spacing.xl * 2,
+  },
+  hero: {
+    height: 300,
+    overflow: "hidden",
+    backgroundColor: "#08182d",
+  },
+  heroImageLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#233448",
+  },
+  parkingStripeRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 22,
+    height: 92,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    opacity: 0.42,
+  },
+  parkingStripe: {
+    width: 1,
+    height: "100%",
+    backgroundColor: "#d4dde8",
+    transform: [{ rotate: "12deg" }],
+  },
+  carRow: {
+    position: "absolute",
+    left: 38,
+    right: 28,
+    top: 44,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    opacity: 0.62,
+  },
+  carShape: {
+    width: 24,
+    height: 46,
+    borderRadius: 7,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  carShapeLight: {
+    backgroundColor: "#64748b",
+  },
+  heroLane: {
+    position: "absolute",
+    left: -60,
+    right: -60,
+    top: 126,
+    height: 34,
+    backgroundColor: "rgba(5,18,34,0.5)",
+    transform: [{ rotate: "0deg" }],
+  },
+  heroLaneSecond: {
+    top: 176,
+    backgroundColor: "rgba(15,23,42,0.42)",
+    transform: [{ rotate: "0deg" }],
+  },
+  heroGlow: {
+    position: "absolute",
+    right: -80,
+    bottom: -80,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(56,189,248,0.12)",
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(3,13,29,0.46)",
+  },
+  heroContent: {
+    position: "absolute",
+    left: theme.Spacing.md,
+    right: theme.Spacing.md,
+    bottom: theme.Spacing.lg,
+  },
+  heroTitle: {
+    color: "#f8fbff",
+    fontSize: 26,
+    fontWeight: "900",
+    marginTop: theme.Spacing.sm,
+  },
+  heroAddress: {
+    color: "#c7d7ee",
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: theme.Spacing.xs,
+  },
+  ratingBadge: {
+    position: "absolute",
+    right: theme.Spacing.md,
+    bottom: theme.Spacing.lg + 22,
+    borderRadius: 999,
+    paddingHorizontal: theme.Spacing.sm,
+    paddingVertical: 7,
+    backgroundColor: "rgba(245,158,11,0.9)",
+  },
+  ratingText: {
+    color: "#fff7ed",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  content: {
+    paddingHorizontal: theme.Spacing.md,
+    paddingTop: theme.Spacing.md,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: theme.Spacing.sm,
   },
-  backButton: { padding: theme.Spacing.sm, borderRadius: theme.Radius.sm },
-  backIcon: { color: theme.Colors.primary, fontSize: 18, fontWeight: "700" },
+  backButton: {
+    position: "absolute",
+    left: theme.Spacing.md,
+    top: theme.Spacing.lg,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(8,24,45,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.16)",
+    zIndex: 2,
+  },
+  backIcon: { color: "#f8fbff", fontSize: 20, fontWeight: "900" },
+  quickInfoGrid: {
+    flexDirection: "row",
+    gap: theme.Spacing.sm,
+    marginBottom: theme.Spacing.lg,
+  },
+  infoTile: {
+    flex: 1,
+    minHeight: 100,
+    borderRadius: 18,
+    backgroundColor: "#12243f",
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.16)",
+    paddingHorizontal: 10,
+    paddingVertical: 13,
+    justifyContent: "flex-start",
+  },
+  infoTileAccent: {
+    color: "#38bdf8",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  infoTileIcon: {
+    height: 18,
+    marginBottom: 8,
+    justifyContent: "center",
+    alignSelf: "flex-start",
+  },
+  infoTileLabel: {
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 5,
+  },
+  infoTileValue: {
+    color: "#f8fbff",
+    fontSize: 14,
+    fontWeight: "900",
+    flexShrink: 1,
+  },
+  sectionCard: {
+    marginBottom: theme.Spacing.lg,
+  },
+  reservationCard: {
+    borderRadius: 26,
+    backgroundColor: "#10223f",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.2)",
+    padding: theme.Spacing.md,
+    marginBottom: theme.Spacing.xl,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: theme.Spacing.sm,
+  },
+  sectionTitle: {
+    color: "#b8cbea",
+    fontSize: 14,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0,
+  },
+  sectionMeta: {
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+  descriptionText: {
+    color: "#8ca6c8",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+    marginTop: theme.Spacing.md,
+  },
   address: { color: theme.Colors.textSecondary, marginTop: theme.Spacing.xs },
   searchDateText: {
     ...theme.Typography.caption,
@@ -1131,7 +1320,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: theme.Spacing.sm,
     paddingVertical: 6,
-    borderRadius: theme.Radius.lg,
+    borderRadius: 999,
+    alignSelf: "flex-start",
   },
   statusDot: {
     width: 10,
@@ -1139,22 +1329,27 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: theme.Spacing.xs,
   },
-  statusLabel: { fontSize: 13, fontWeight: "600" },
+  statusLabel: { fontSize: 12, fontWeight: "900" },
   hoursBlock: { alignItems: "flex-end", maxWidth: 140 },
   amenitiesRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: theme.Spacing.sm,
+    alignItems: "center",
+    paddingTop: theme.Spacing.xs,
+    paddingBottom: 2,
+    gap: theme.Spacing.sm,
   },
   amenityChip: {
-    backgroundColor: theme.Colors.background,
+    flex: 1,
+    backgroundColor: "#1d3a63",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.2)",
     paddingHorizontal: theme.Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: theme.Radius.md,
-    marginRight: theme.Spacing.sm,
-    marginTop: theme.Spacing.sm,
+    paddingVertical: 9,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  amenityText: { ...theme.Typography.caption, color: theme.Colors.textPrimary },
+  amenityText: { color: "#c7d7ee", fontSize: 12, fontWeight: "900" },
   muted: { color: theme.Colors.textSecondary },
   availabilityNumber: {
     ...theme.Typography.title,
@@ -1176,21 +1371,40 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   simulateButton: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     minHeight: 30,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: theme.Colors.border,
+    borderColor: "rgba(148,171,207,0.18)",
     paddingHorizontal: theme.Spacing.sm,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.Colors.background,
+    backgroundColor: "rgba(8,24,45,0.72)",
     marginTop: theme.Spacing.md,
   },
   simulateText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    fontWeight: "600",
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  viewMapButton: {
+    minHeight: 50,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.34)",
+    marginBottom: theme.Spacing.sm,
+  },
+  viewMapButtonText: {
+    color: "#38bdf8",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  timeGrid: {
+    flexDirection: "row",
+    gap: theme.Spacing.sm,
   },
   actionRow: {
     flexDirection: "row",
@@ -1213,8 +1427,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   reserveErrorText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.error,
+    color: "#fca5a5",
+    fontSize: 12,
+    fontWeight: "800",
     textAlign: "center",
     marginTop: theme.Spacing.sm,
   },
@@ -1255,51 +1470,52 @@ const styles = StyleSheet.create({
     marginVertical: theme.Spacing.md,
   },
   timeSection: {
+    flex: 1,
     marginBottom: theme.Spacing.sm,
   },
   timeLabel: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
-    fontWeight: "700",
+    color: "#f8fbff",
+    fontSize: 12,
+    fontWeight: "900",
     marginBottom: theme.Spacing.xs,
   },
   timeField: {
     minHeight: 48,
-    borderRadius: theme.Radius.md,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.Colors.border,
-    backgroundColor: theme.Colors.surface,
-    paddingHorizontal: theme.Spacing.md,
+    borderColor: "rgba(148,171,207,0.16)",
+    backgroundColor: "rgba(8,24,45,0.92)",
+    paddingHorizontal: theme.Spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   timeFieldDisabled: {
     opacity: 0.58,
-    backgroundColor: theme.Colors.background,
   },
   timeFieldText: {
-    ...theme.Typography.body,
-    color: theme.Colors.textPrimary,
-    fontWeight: "700",
+    color: "#f8fbff",
+    fontSize: 14,
+    fontWeight: "900",
   },
   timeFieldPlaceholder: {
-    color: theme.Colors.textSecondary,
-    fontWeight: "400",
+    color: "#8ca6c8",
+    fontWeight: "800",
   },
   timeFieldIcon: {
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
     fontSize: 18,
     fontWeight: "700",
   },
   workingHoursText: {
-    ...theme.Typography.caption,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 12,
+    fontWeight: "700",
     marginBottom: theme.Spacing.sm,
   },
   timePickerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(2,6,23,0.42)",
+    backgroundColor: "rgba(2,6,23,0.62)",
     alignItems: "center",
     justifyContent: "center",
     padding: theme.Spacing.lg,
@@ -1307,8 +1523,10 @@ const styles = StyleSheet.create({
   timePickerPopup: {
     width: "100%",
     maxWidth: 360,
-    backgroundColor: theme.Colors.surface,
-    borderRadius: theme.Radius.lg,
+    backgroundColor: "#10223f",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.18)",
     paddingHorizontal: theme.Spacing.md,
     paddingTop: theme.Spacing.md,
     paddingBottom: theme.Spacing.sm,
@@ -1320,7 +1538,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   timePickerTitle: {
-    ...theme.Typography.subtitle,
+    color: "#f8fbff",
+    fontSize: 18,
+    fontWeight: "900",
     textAlign: "center",
     marginBottom: theme.Spacing.sm,
   },
@@ -1332,33 +1552,36 @@ const styles = StyleSheet.create({
   },
   timeSlot: {
     minHeight: 44,
-    borderRadius: theme.Radius.md,
+    borderRadius: 16,
     paddingHorizontal: theme.Spacing.md,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: theme.Spacing.xs,
-    backgroundColor: theme.Colors.background,
+    backgroundColor: "rgba(8,24,45,0.92)",
   },
   timeSlotSelected: {
-    backgroundColor: theme.Colors.primary,
+    backgroundColor: "#38bdf8",
   },
   timeSlotText: {
-    ...theme.Typography.body,
-    color: theme.Colors.textPrimary,
-    fontWeight: "700",
+    color: "#c7d7ee",
+    fontSize: 14,
+    fontWeight: "900",
   },
   timeSlotTextSelected: {
-    color: "#fff",
+    color: "#071426",
   },
   timeSlotEmpty: {
-    ...theme.Typography.body,
-    color: theme.Colors.textSecondary,
+    color: "#8ca6c8",
+    fontSize: 14,
+    fontWeight: "700",
     textAlign: "center",
     paddingVertical: theme.Spacing.lg,
   },
   priceSummary: {
-    backgroundColor: theme.Colors.background,
-    borderRadius: theme.Radius.md,
+    backgroundColor: "rgba(8,24,45,0.82)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(148,171,207,0.12)",
     padding: theme.Spacing.md,
     marginTop: theme.Spacing.sm,
     marginBottom: theme.Spacing.md,
@@ -1368,6 +1591,49 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: theme.Spacing.sm,
+  },
+  summaryValue: {
+    color: "#f8fbff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  summaryTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(148,171,207,0.12)",
+    paddingTop: theme.Spacing.sm,
+  },
+  totalLabel: {
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  totalValue: {
+    color: "#38bdf8",
+    fontSize: 21,
+    fontWeight: "900",
+  },
+  reserveCta: {
+    minHeight: 56,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#38bdf8",
+    shadowColor: "#38bdf8",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  reserveCtaDisabled: {
+    opacity: 0.55,
+  },
+  reserveCtaText: {
+    color: "#071426",
+    fontSize: 16,
+    fontWeight: "900",
   },
   confirmButton: {
     borderRadius: theme.Radius.lg,

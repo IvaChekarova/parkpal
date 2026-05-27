@@ -20,6 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Region } from "react-native-maps";
 
+import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useCurrency } from "../context/CurrencyContext";
 import { parkingApi, ParkingSummary } from "../services/parkingApi";
@@ -545,34 +546,7 @@ export default function HomeScreen() {
   return (
     <ScreenWrapper style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.topHeader}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandIcon}>
-              {Feather ? (
-                <Feather name="map-pin" size={19} color="#fff" />
-              ) : (
-                <Text style={styles.brandFallback}>⌖</Text>
-              )}
-            </View>
-            <Text style={styles.heroTitle}>ParkPal</Text>
-          </View>
-
-          <View style={styles.heroActions}>
-            <View style={styles.locationPill}>
-              <View style={styles.locationDot} />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {locationLabel}
-              </Text>
-            </View>
-            <View style={styles.iconButton}>
-              {Feather ? (
-                <Feather name="bell" size={17} color="#c7d7ee" />
-              ) : (
-                <Text style={styles.iconButtonText}>!</Text>
-              )}
-            </View>
-          </View>
-        </View>
+        <AppHeader locationLabel={locationLabel} />
 
         <View style={[styles.hero, { height: mapHeight }]}>
           <MapView
@@ -594,6 +568,7 @@ export default function HomeScreen() {
                 onPress={() =>
                   navigation.navigate("ParkingDetails", {
                     parkingId: parking.id,
+                    locationLabel,
                   })
                 }
               >
@@ -710,6 +685,7 @@ export default function HomeScreen() {
                   onPress={() =>
                     navigation.navigate("ParkingDetails", {
                       parkingId: parking.id,
+                      locationLabel,
                     })
                   }
                 />
@@ -1006,7 +982,12 @@ function NearbyParkingCard({
         : `${parking.availableSpots} free`;
   const progressWidth = `${Math.max(
     4,
-    Math.min(100, 100 - parking.occupancyPercentage)
+    Math.min(
+      100,
+      parking.totalSpots > 0
+        ? Math.round((parking.availableSpots / parking.totalSpots) * 100)
+        : 0
+    )
   )}%` as DimensionValue;
 
   return (
@@ -1113,16 +1094,6 @@ const styles = StyleSheet.create({
     paddingBottom: theme.Spacing.sm,
     backgroundColor: "#071426",
   },
-  topHeader: {
-    minHeight: 68,
-    paddingHorizontal: theme.Spacing.md,
-    paddingTop: theme.Spacing.sm,
-    paddingBottom: theme.Spacing.sm,
-    backgroundColor: "#071426",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   hero: {
     paddingHorizontal: theme.Spacing.md,
     backgroundColor: "#08182d",
@@ -1132,82 +1103,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(3,13,29,0.12)",
   },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  brandIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563eb",
-    marginRight: theme.Spacing.sm,
-    shadowColor: "#2563eb",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  brandFallback: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "800",
-  },
   heroEyebrow: {
     ...theme.Typography.caption,
     color: "#86a8cf",
     fontWeight: "700",
-  },
-  heroTitle: {
-    color: "#f8fbff",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-  heroActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: theme.Spacing.sm,
-  },
-  locationPill: {
-    minHeight: 40,
-    maxWidth: 150,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(148,171,207,0.24)",
-    backgroundColor: "rgba(18,38,69,0.88)",
-    paddingHorizontal: theme.Spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  locationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#20d7a6",
-    marginRight: theme.Spacing.xs,
-  },
-  locationText: {
-    color: "#c7d7ee",
-    fontWeight: "800",
-    fontSize: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: theme.Spacing.sm,
-    borderWidth: 1,
-    borderColor: "rgba(148,171,207,0.18)",
-    backgroundColor: "rgba(18,38,69,0.88)",
-  },
-  iconButtonText: {
-    color: "#c7d7ee",
-    fontWeight: "800",
   },
   searchPill: {
     flexDirection: "row",

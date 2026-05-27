@@ -11,8 +11,6 @@ export type ParkingSummary = {
   pricePerHour: number;
   totalSpots: number;
   availableSpots: number;
-  occupiedSpots: number;
-  occupancyPercentage: number;
   availabilityStatus: "AVAILABLE" | "LIMITED" | "FULL";
 };
 
@@ -27,7 +25,6 @@ export type ParkingDetails = ParkingSummary & {
   description?: string | null;
   availabilitySummary: {
     available: number;
-    occupied: number;
     reserved: number;
     outOfService: number;
   };

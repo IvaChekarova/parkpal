@@ -172,8 +172,6 @@ export default function SearchResultsScreen() {
               ...item,
               totalSpots: parking.totalSpots,
               availableSpots: parking.availableSpots,
-              occupiedSpots: parking.occupiedSpots,
-              occupancyPercentage: parking.occupancyPercentage,
               availabilityStatus: parking.availabilityStatus,
             }
           : item
