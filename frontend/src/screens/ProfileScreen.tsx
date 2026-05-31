@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import theme from "../theme";
@@ -20,6 +21,10 @@ import {
   SupportedCurrency,
   useCurrency,
 } from "../context/CurrencyContext";
+import {
+  SupportedLanguage,
+  useLocalization,
+} from "../context/LocalizationContext";
 import { reservationApi } from "../services/reservationApi";
 import { getAbsoluteProfileImageUrl, userApi } from "../services/userApi";
 
@@ -38,25 +43,11 @@ type SettingsAction = {
   modal?: Exclude<ModalType, null>;
 };
 
-const languages = ["English", "Македонски"];
+const languages: { label: string; value: SupportedLanguage }[] = [
+  { label: "English", value: "en" },
+  { label: "Македонски", value: "mk" },
+];
 const currencies: SupportedCurrency[] = ["EUR", "MKD", "USD"];
-
-const formatRole = (role?: string) => {
-  if (!role) return "Driver";
-  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-};
-
-const formatMemberSince = (createdAt?: string) => {
-  if (!createdAt) return "Not available";
-
-  const date = new Date(createdAt);
-  if (Number.isNaN(date.getTime())) return "Not available";
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const getInitial = (name?: string | null) => {
   return name?.trim().charAt(0).toUpperCase() || "P";
@@ -66,13 +57,16 @@ const getNotificationStatus = (
   reservationReminders: boolean,
   availabilityUpdates: boolean
 ) => {
-  return reservationReminders || availabilityUpdates ? "On" : "Off";
+  return reservationReminders || availabilityUpdates
+    ? "profile.on"
+    : "profile.off";
 };
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLocalization();
   const { logout, token, updateUser, user } = useAuth();
   const { selectedCurrency, setSelectedCurrency } = useCurrency();
-  const [language, setLanguage] = React.useState("English");
   const [activeModal, setActiveModal] = React.useState<ModalType>(null);
   const [reservationReminders, setReservationReminders] = React.useState(true);
   const [availabilityUpdates, setAvailabilityUpdates] = React.useState(false);
@@ -113,23 +107,27 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => logout() },
+    Alert.alert(t("profile.logOutTitle"), t("profile.logOutMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("profile.logOut"), style: "destructive", onPress: () => logout() },
     ]);
   };
 
   const actions: SettingsAction[] = [
     {
-      key: "Notifications",
-      value: getNotificationStatus(reservationReminders, availabilityUpdates),
+      key: t("profile.notifications"),
+      value: t(getNotificationStatus(reservationReminders, availabilityUpdates)),
       modal: "notifications" as const,
     },
-    { key: "Currency", value: selectedCurrency, modal: "currency" as const },
-    { key: "Language", value: language, modal: "language" as const },
-    { key: "Privacy & Security", modal: "privacy" as const },
-    { key: "Support", modal: "support" as const },
-    { key: "Payment methods", value: "Coming soon" },
+    { key: t("profile.currency"), value: selectedCurrency, modal: "currency" as const },
+    {
+      key: t("profile.language"),
+      value: languages.find((item) => item.value === language)?.label,
+      modal: "language" as const,
+    },
+    { key: t("profile.privacySecurity"), modal: "privacy" as const },
+    { key: t("profile.support"), modal: "support" as const },
+    { key: t("profile.paymentMethods"), value: t("common.comingSoon") },
   ];
 
   const handleActionPress = (action: SettingsAction) => {
@@ -145,8 +143,8 @@ export default function ProfileScreen() {
 
     if (!permission.granted) {
       Alert.alert(
-        "Permission needed",
-        "Please allow photo library access to change your profile photo."
+        t("profile.permissionNeeded"),
+        t("profile.permissionBody")
       );
       return;
     }
@@ -172,8 +170,8 @@ export default function ProfileScreen() {
       updateUser(updatedUser);
     } catch (err) {
       Alert.alert(
-        "Upload failed",
-        err instanceof Error ? err.message : "Unable to update profile photo."
+        t("profile.uploadFailed"),
+        err instanceof Error ? err.message : t("profile.unablePhoto")
       );
     } finally {
       setIsUpdatingPhoto(false);
@@ -190,8 +188,8 @@ export default function ProfileScreen() {
       updateUser(updatedUser);
     } catch (err) {
       Alert.alert(
-        "Remove failed",
-        err instanceof Error ? err.message : "Unable to remove profile photo."
+        t("profile.removeFailed"),
+        err instanceof Error ? err.message : t("profile.unableRemove")
       );
     } finally {
       setIsUpdatingPhoto(false);
@@ -200,20 +198,20 @@ export default function ProfileScreen() {
 
   const openAvatarOptions = () => {
     const options = [
-      { text: "Change photo", onPress: () => void uploadProfileImage() },
+      { text: t("profile.changePhoto"), onPress: () => void uploadProfileImage() },
       ...(profileImageUri
         ? [
             {
-              text: "Remove photo",
+              text: t("profile.removePhoto"),
               style: "destructive" as const,
               onPress: () => void removeProfileImage(),
             },
           ]
         : []),
-      { text: "Cancel", style: "cancel" as const },
+      { text: t("common.cancel"), style: "cancel" as const },
     ];
 
-    Alert.alert("Profile photo", undefined, options);
+    Alert.alert(t("profile.profilePhoto"), undefined, options);
   };
 
   return (
@@ -244,23 +242,23 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
           <Text style={styles.profileName}>
-            {user?.fullName ?? "ParkPal user"}
+            {user?.fullName ?? t("profile.parkpalUser")}
           </Text>
-          <Text style={styles.emailText}>{user?.email ?? "Signed in"}</Text>
+          <Text style={styles.emailText}>{user?.email ?? t("profile.signedIn")}</Text>
         </View>
 
         <View style={styles.statsCard}>
           <StatItem
-            label="Reservations"
+            label={t("profile.reservations")}
             value={reservationCount === null ? "—" : String(reservationCount)}
           />
           <View style={styles.statDivider} />
-          <StatItem label="Rating" value="New" />
+          <StatItem label={t("profile.rating")} value={t("profile.new")} />
           <View style={styles.statDivider} />
-          <StatItem label="Role" value={formatRole(user?.role)} />
+          <StatItem label={t("profile.role")} value={t("profile.driver")} />
         </View>
 
-        <Text style={styles.sectionLabel}>Settings</Text>
+        <Text style={styles.sectionLabel}>{t("profile.settings")}</Text>
         <View style={styles.actionsCard}>
           {actions.map((action) => (
             <Pressable
@@ -291,7 +289,7 @@ export default function ProfileScreen() {
             pressed && { opacity: 0.8 },
           ]}
         >
-          <Text style={styles.logoutText}>Log out</Text>
+          <Text style={styles.logoutText}>{t("profile.logOut")}</Text>
         </Pressable>
 
         <View style={{ height: theme.Spacing.xl }} />
@@ -301,30 +299,29 @@ export default function ProfileScreen() {
         visible={activeModal === "language"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>Select language</Text>
+        <Text style={styles.modalTitle}>{t("profile.selectLanguage")}</Text>
         <View style={{ height: theme.Spacing.md }} />
         {languages.map((item) => (
           <SelectionRow
-            key={item}
-            label={item}
-            selected={language === item}
+            key={item.value}
+            label={item.label}
+            selected={language === item.value}
             onPress={() => {
-              setLanguage(item);
+              void setLanguage(item.value);
               setActiveModal(null);
             }}
           />
         ))}
-        <ModalCloseButton onPress={() => setActiveModal(null)} />
+        <ModalCloseButton label={t("common.cancel")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
 
       <CenteredModal
         visible={activeModal === "currency"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>Select currency</Text>
+        <Text style={styles.modalTitle}>{t("profile.selectCurrency")}</Text>
         <Text style={styles.modalBody}>
-          Prices update across ParkPal for display only. Reservations remain
-          stored in EUR.
+          {t("profile.currencyBody")}
         </Text>
         {currencies.map((item) => (
           <SelectionRow
@@ -337,66 +334,66 @@ export default function ProfileScreen() {
             }}
           />
         ))}
-        <ModalCloseButton onPress={() => setActiveModal(null)} />
+        <ModalCloseButton label={t("common.cancel")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
 
       <CenteredModal
         visible={activeModal === "notifications"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>Notifications</Text>
+        <Text style={styles.modalTitle}>{t("profile.notifications")}</Text>
         <Text style={styles.modalBody}>
-          Manage local notification preferences for ParkPal updates.
+          {t("profile.notificationsBody")}
         </Text>
         <ToggleRow
-          label="Reservation reminders"
+          label={t("profile.reservationReminders")}
           value={reservationReminders}
           onValueChange={setReservationReminders}
         />
         <ToggleRow
-          label="Parking availability updates"
+          label={t("profile.availabilityUpdates")}
           value={availabilityUpdates}
           onValueChange={setAvailabilityUpdates}
         />
-        <ModalCloseButton onPress={() => setActiveModal(null)} />
+        <ModalCloseButton label={t("common.cancel")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
 
       <CenteredModal
         visible={activeModal === "support"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>How can we help?</Text>
+        <Text style={styles.modalTitle}>{t("profile.supportTitle")}</Text>
         <Text style={styles.modalBody}>
-          Contact ParkPal support for reservation, payment, or parking issues.
+          {t("profile.supportBody")}
         </Text>
         <View style={styles.supportEmailBox}>
           <Text style={styles.supportEmail}>support@parkpal.app</Text>
         </View>
-        <ModalCloseButton label="Close" onPress={() => setActiveModal(null)} />
+        <ModalCloseButton label={t("common.close")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
 
       <CenteredModal
         visible={activeModal === "privacy"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>Privacy & Terms</Text>
+        <Text style={styles.modalTitle}>{t("profile.privacyTitle")}</Text>
         <PolicySection
-          title="Privacy"
-          text="We use your account details to manage reservations and app access."
+          title={t("profile.privacy")}
+          text={t("profile.privacyText")}
         />
         <PolicySection
-          title="Terms"
-          text="Reservations must follow parking rules, timing limits, and local regulations."
+          title={t("profile.terms")}
+          text={t("profile.termsText")}
         />
         <PolicySection
-          title="Payments"
-          text="Payments are simulated in this MVP. No card data is stored."
+          title={t("profile.payments")}
+          text={t("profile.paymentsText")}
         />
         <PolicySection
-          title="Location data"
-          text="Location is used only to help you find nearby parking."
+          title={t("profile.locationData")}
+          text={t("profile.locationText")}
         />
-        <ModalCloseButton label="Close" onPress={() => setActiveModal(null)} />
+        <ModalCloseButton label={t("common.close")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
     </ScreenWrapper>
   );

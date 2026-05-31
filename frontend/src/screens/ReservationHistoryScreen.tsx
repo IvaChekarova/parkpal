@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
@@ -34,19 +35,17 @@ const formatDate = (value: string) => {
   });
 };
 
-const formatDuration = (minutes: number) => {
+const formatDuration = (
+  minutes: number,
+  t: (key: string, options?: Record<string, unknown>) => string
+) => {
   if (minutes < 1440) {
     const hours = minutes / 60;
     return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
   }
 
   const days = Math.ceil(minutes / 1440);
-  return `${days} day${days === 1 ? "" : "s"}`;
-};
-
-const statusLabel = (status: Reservation["status"]) => {
-  if (status === "CANCELLED") return "Cancelled";
-  return "Completed";
+  return t("parking.days", { count: days });
 };
 
 const statusStyle = (status: Reservation["status"]) => {
@@ -61,12 +60,6 @@ const statusStyle = (status: Reservation["status"]) => {
     backgroundColor: "rgba(148,171,207,0.12)",
     color: "#8ca6c8",
   };
-};
-
-const paymentLabel = (status?: ReservationPaymentStatus) => {
-  if (status === "PAID") return "Paid";
-  if (status === "FAILED") return "Failed";
-  return "Pending";
 };
 
 const paymentStyle = (status?: ReservationPaymentStatus) => {
@@ -91,6 +84,7 @@ const paymentStyle = (status?: ReservationPaymentStatus) => {
 };
 
 export default function ReservationHistoryScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
@@ -125,7 +119,7 @@ export default function ReservationHistoryScreen() {
         } catch (err) {
           if (isMounted) {
             setError(
-              err instanceof Error ? err.message : "Unable to load history."
+              err instanceof Error ? err.message : t("reservations.unableLoad")
             );
           }
         } finally {
@@ -140,7 +134,7 @@ export default function ReservationHistoryScreen() {
       return () => {
         isMounted = false;
       };
-    }, [token])
+    }, [token, t])
   );
 
   return (
@@ -155,12 +149,12 @@ export default function ReservationHistoryScreen() {
               styles.backButton,
               pressed && { opacity: 0.82 },
             ]}
-            accessibilityLabel="Back"
+            accessibilityLabel={t("common.back")}
           >
             <Text style={styles.backIcon}>←</Text>
           </Pressable>
           <View style={styles.titleBlock}>
-            <Text style={styles.screenTitle}>Reservation history</Text>
+            <Text style={styles.screenTitle}>{t("reservations.historyTitle")}</Text>
           </View>
         </View>
       </View>
@@ -201,7 +195,7 @@ export default function ReservationHistoryScreen() {
                     ]}
                   >
                     <Text style={[styles.statusText, { color: badge.color }]}>
-                      {statusLabel(item.status)}
+                      {t(`status.${item.status}`)}
                     </Text>
                   </View>
                 </View>
@@ -209,7 +203,7 @@ export default function ReservationHistoryScreen() {
                 <View style={styles.rowBottom}>
                   <Text style={styles.cardMeta}>
                     {formatDate(item.startTime)} •{" "}
-                    {formatDuration(item.durationMinutes)}
+                    {formatDuration(item.durationMinutes, t)}
                   </Text>
                   <Text style={styles.cardPrice}>
                     {formatPrice(item.pricing.totalPrice)}
@@ -226,7 +220,7 @@ export default function ReservationHistoryScreen() {
                     <Text
                       style={[styles.paymentText, { color: paymentBadge.color }]}
                     >
-                      {paymentLabel(item.payment?.paymentStatus)}
+                      {t(`status.${item.payment?.paymentStatus ?? "PENDING"}`)}
                     </Text>
                   </View>
                 </View>
@@ -241,14 +235,16 @@ export default function ReservationHistoryScreen() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.emptyCard}>
       <View style={styles.emptyIcon}>
         <Text style={styles.emptyIconText}>P</Text>
       </View>
-      <Text style={styles.emptyTitle}>No completed reservations yet</Text>
+      <Text style={styles.emptyTitle}>{t("reservations.noHistory")}</Text>
       <Text style={styles.emptySubtitle}>
-        Completed and cancelled bookings will appear here.
+        {t("reservations.historyEmptyText")}
       </Text>
     </View>
   );

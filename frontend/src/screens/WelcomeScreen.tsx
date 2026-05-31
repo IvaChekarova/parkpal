@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Button from "../components/Button";
 import SectionTitle from "../components/SectionTitle";
@@ -21,6 +22,7 @@ import { useAuth } from "../context/AuthContext";
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -39,7 +41,7 @@ export default function WelcomeScreen() {
     try {
       await login({ email: email.trim(), password });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to log in");
+      setError(err instanceof Error ? err.message : t("auth.unableToLogIn"));
     } finally {
       setIsLoading(false);
     }
@@ -57,14 +59,14 @@ export default function WelcomeScreen() {
 
             <SectionTitle small>{"ParkPal"}</SectionTitle>
             <Text style={styles.subtitle}>
-              Smart parking discovery and reservation
+              {t("auth.subtitle")}
             </Text>
           </View>
 
           <View style={styles.card}>
             <View style={styles.cardInner}>
               <Input
-                placeholder="Email"
+                placeholder={t("auth.email")}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -74,7 +76,7 @@ export default function WelcomeScreen() {
               <View style={{ height: theme.Spacing.sm }} />
 
               <Input
-                placeholder="Password"
+                placeholder={t("auth.password")}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -83,7 +85,7 @@ export default function WelcomeScreen() {
               <View style={{ height: theme.Spacing.sm }} />
 
               <Button
-                title={isLoading ? "Logging in..." : "Log In"}
+                title={isLoading ? t("auth.loggingIn") : t("auth.logIn")}
                 disabled={!canSubmit || isLoading}
                 onPress={handleLogin}
                 style={{
@@ -98,17 +100,17 @@ export default function WelcomeScreen() {
 
               <View style={styles.dividerRow}>
                 <View style={styles.line} />
-                <Text style={styles.orText}>or</Text>
+                <Text style={styles.orText}>{t("common.or")}</Text>
                 <View style={styles.line} />
               </View>
 
               <View style={{ height: theme.Spacing.md }} />
 
               <Button
-                title="Continue with Google"
+                title={t("auth.continueWithGoogle")}
                 variant="outline"
                 onPress={() => {
-                  setError("Google login is not available yet.");
+                  setError(t("auth.googleUnavailable"));
                 }}
                 style={{
                   borderRadius: theme.Radius.lg,
@@ -119,9 +121,9 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.bottomRowInline}>
-            <Text style={styles.bottomText}>Still don’t have an account? </Text>
+            <Text style={styles.bottomText}>{t("auth.noAccount")}</Text>
             <Pressable onPress={() => navigation.navigate("Register")}>
-              <Text style={styles.registerLink}>Register now</Text>
+              <Text style={styles.registerLink}>{t("auth.registerNow")}</Text>
             </Pressable>
           </View>
         </View>

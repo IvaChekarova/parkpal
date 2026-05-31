@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -17,6 +18,7 @@ type NavProp = NativeStackNavigationProp<
 type RouteProps = RouteProp<RootStackParamList, "ReservationConfirm">;
 
 export default function ReservationConfirmScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteProps>();
   const { formatPrice } = useCurrency();
@@ -36,7 +38,7 @@ export default function ReservationConfirmScreen() {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={theme.Typography.title}>Confirm reservation</Text>
+        <Text style={theme.Typography.title}>{t("parking.reserveSpot")}</Text>
 
         <View style={{ height: theme.Spacing.md }} />
 
@@ -57,29 +59,30 @@ export default function ReservationConfirmScreen() {
           <View style={{ height: theme.Spacing.md }} />
 
           <View style={styles.row}>
-            <Text style={theme.Typography.caption}>Price</Text>
+            <Text style={theme.Typography.caption}>{t("parking.price")}</Text>
             <Text style={theme.Typography.body}>
-              {formatPrice(parking.pricePerHour)}/hr
+              {formatPrice(parking.pricePerHour)}
+              {t("common.perHour")}
             </Text>
           </View>
 
           <View style={styles.row}>
-            <Text style={theme.Typography.caption}>Duration</Text>
-            <Text style={theme.Typography.body}>{durationHours} hour</Text>
+            <Text style={theme.Typography.caption}>{t("parking.duration")}</Text>
+            <Text style={theme.Typography.body}>{durationHours}h</Text>
           </View>
 
           <View style={styles.row}>
-            <Text style={theme.Typography.caption}>Estimated total</Text>
+            <Text style={theme.Typography.caption}>{t("parking.estimatedTotal")}</Text>
             <Text style={theme.Typography.title}>{formatPrice(estimated)}</Text>
           </View>
         </Card>
 
         <View style={{ height: theme.Spacing.md }} />
 
-        <Button title="Confirm reservation" onPress={handleConfirm} />
+        <Button title={t("parking.reserveSpot")} onPress={handleConfirm} />
         <View style={{ height: theme.Spacing.sm }} />
         <Button
-          title="Cancel"
+          title={t("common.cancel")}
           variant="outline"
           onPress={() => navigation.goBack()}
         />

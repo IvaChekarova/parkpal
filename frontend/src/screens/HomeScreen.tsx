@@ -19,6 +19,7 @@ import * as Location from "expo-location";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Region } from "react-native-maps";
+import { useTranslation } from "react-i18next";
 
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
@@ -49,10 +50,10 @@ type NearbyParking = ParkingSummary & {
   distanceKm?: number;
 };
 
-const PARKING_TYPES: { label: string; value: ParkingTypeFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Public", value: "PUBLIC" },
-  { label: "Private", value: "PRIVATE" },
+const PARKING_TYPES: { labelKey: string; value: ParkingTypeFilter }[] = [
+  { labelKey: "common.all", value: "all" },
+  { labelKey: "common.public", value: "PUBLIC" },
+  { labelKey: "common.private", value: "PRIVATE" },
 ];
 
 const DEFAULT_REGION: Region = {
@@ -110,8 +111,8 @@ const formatDateValue = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatDisplayDate = (value: Date | null) => {
-  if (!value) return "Select date";
+const formatDisplayDate = (value: Date | null, fallback: string) => {
+  if (!value) return fallback;
 
   return value.toLocaleDateString(undefined, {
     month: "short",
@@ -177,29 +178,35 @@ const getMarkerColor = (parking: ParkingSummary) => {
   return "#38bdf8";
 };
 
-const getAvailabilityLabel = (parking: ParkingSummary) => {
+const getAvailabilityLabelKey = (parking: ParkingSummary) => {
   if (parking.availabilityStatus === "FULL") {
-    return "Full";
+    return "common.full";
   }
 
   if (parking.availabilityStatus === "LIMITED") {
-    return parking.availableSpots <= 5 ? "Few spots left" : "Limited";
+    return parking.availableSpots <= 5 ? "common.fewSpotsLeft" : "common.limited";
   }
 
-  return "Available";
+  return "common.available";
 };
 
-const formatDistance = (distanceKm?: number) => {
-  if (distanceKm === undefined) return "Popular nearby";
-  if (distanceKm < 1) return `${distanceKm.toFixed(1)} km away`;
-  return `${distanceKm.toFixed(1)} km away`;
+const formatDistance = (
+  distanceKm: number | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string
+) => {
+  if (distanceKm === undefined) return t("common.popularNearby");
+  return t("common.kmAway", { distance: distanceKm.toFixed(1) });
 };
 
-const formatParkingType = (parkingType: ParkingSummary["parkingType"]) => {
-  return parkingType === "PRIVATE" ? "Covered" : "Open Air";
+const formatParkingType = (
+  parkingType: ParkingSummary["parkingType"],
+  t: (key: string) => string
+) => {
+  return parkingType === "PRIVATE" ? t("home.covered") : t("home.openAir");
 };
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { formatPrice } = useCurrency();
   const { locationLabel, setLocationLabel } = useAppLocation();
@@ -277,14 +284,14 @@ export default function HomeScreen() {
             ].filter(Boolean);
             const nextLabel = cityParts.length
               ? Array.from(new Set(cityParts)).join(", ")
-              : place?.region || "Current area";
+              : place?.region || t("common.currentArea");
 
             if (isMounted) {
               setLocationLabel(nextLabel);
             }
           } catch (_err) {
             if (isMounted) {
-              setLocationLabel("Current area");
+              setLocationLabel(t("common.currentArea"));
             }
           }
         }
@@ -317,13 +324,13 @@ export default function HomeScreen() {
         if (isMounted) {
           setUserLocation(currentLocation);
           if (permission.status !== "granted") {
-            setLocationLabel("Skopje");
+            setLocationLabel(t("common.skopje"));
           }
           setNearbyParkings(sortedParkings.slice(0, 3));
         }
       } catch (_err) {
         if (isMounted) {
-          setNearbyError("Unable to load nearby parking.");
+          setNearbyError(t("home.nearbyError"));
         }
       } finally {
         if (isMounted) {
@@ -337,7 +344,7 @@ export default function HomeScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [setLocationLabel, t]);
 
   const mapRegion = React.useMemo<Region>(() => {
     if (userLocation) {
@@ -404,7 +411,7 @@ export default function HomeScreen() {
 
     if (activeDatePicker === "one-time") {
       if (normalizedDate < startOfToday()) {
-        setError("Date cannot be in the past.");
+        setError(t("validation.datePast"));
         setActiveDatePicker(null);
         return;
       }
@@ -419,7 +426,7 @@ export default function HomeScreen() {
       setFromDate(normalizedDate);
 
       if (normalizedDate < startOfToday()) {
-        setError("From date cannot be in the past.");
+        setError(t("validation.fromDatePast"));
       } else if (toDate && toDate <= normalizedDate) {
         setToDate(null);
         setError("");
@@ -432,7 +439,7 @@ export default function HomeScreen() {
     }
 
     if (fromDate && normalizedDate <= fromDate) {
-      setError("To date must be after from date.");
+      setError(t("validation.toAfterFrom"));
       setActiveDatePicker(null);
       return;
     }
@@ -446,45 +453,45 @@ export default function HomeScreen() {
     const today = startOfToday();
 
     if (!where.trim()) {
-      return "Please enter a location.";
+      return t("validation.locationRequired");
     }
 
     if (mode === "one-time") {
       if (!oneTimeDate) {
-        return "Please select a date.";
+        return t("validation.dateRequired");
       }
 
       if (oneTimeDate < today) {
-        return "Date cannot be in the past.";
+        return t("validation.datePast");
       }
 
       return "";
     }
 
     if (!fromDate) {
-      return "Please select a from date.";
+      return t("validation.fromDateRequired");
     }
 
     if (!toDate) {
-      return "Please select a to date.";
+      return t("validation.toDateRequired");
     }
 
     if (fromDate < today) {
-      return "From date cannot be in the past.";
+      return t("validation.fromDatePast");
     }
 
     if (toDate <= fromDate) {
-      return "To date must be after from date.";
+      return t("validation.toAfterFrom");
     }
 
     const durationDays = getDateRangeDays(fromDate, toDate);
 
     if (durationDays < 1) {
-      return "Long-term parking must be at least 1 day.";
+      return t("validation.longTermMin");
     }
 
     if (durationDays > 30) {
-      return "Long-term parking can be up to 30 days.";
+      return t("validation.longTermMax");
     }
 
     return "";
@@ -521,7 +528,7 @@ export default function HomeScreen() {
           parkingType: selectedParkingType,
           date:
             mode === "one-time" && oneTimeDate
-              ? formatDisplayDate(oneTimeDate)
+              ? formatDisplayDate(oneTimeDate, t("common.selectDate"))
               : undefined,
           fromDate:
             mode === "long-term" && fromDate
@@ -534,7 +541,7 @@ export default function HomeScreen() {
         },
       });
     } catch (_err) {
-      setError("Unable to search parking right now. Please try again.");
+      setError(t("home.unableSearch"));
     } finally {
       setIsSearching(false);
     }
@@ -608,7 +615,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.searchTextBlock}>
               <Text style={styles.searchTitle} numberOfLines={1}>
-                Search address or location...
+                {t("home.searchPlaceholder")}
               </Text>
             </View>
             <View style={styles.searchActionIcon}>
@@ -658,11 +665,11 @@ export default function HomeScreen() {
         <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>Nearby Parking</Text>
+              <Text style={styles.sectionTitle}>{t("home.nearbyParking")}</Text>
             </View>
             {!isLoadingNearby && nearbyParkings.length > 0 ? (
               <Text style={styles.sectionCount}>
-                {nearbyParkings.length} spots found
+                {t("common.spotsFound", { count: nearbyParkings.length })}
               </Text>
             ) : null}
             {isLoadingNearby ? (
@@ -674,7 +681,7 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>{nearbyError}</Text>
           ) : nearbyParkings.length === 0 && !isLoadingNearby ? (
             <Text style={styles.emptyText}>
-              No nearby parking available right now.
+              {t("home.noNearby")}
             </Text>
           ) : (
             <View style={styles.nearbyList}>
@@ -683,6 +690,7 @@ export default function HomeScreen() {
                   key={parking.id}
                   parking={parking}
                   formatPrice={formatPrice}
+                  t={t}
                   onPress={() =>
                     navigation.navigate("ParkingDetails", {
                       parkingId: parking.id,
@@ -721,7 +729,7 @@ export default function HomeScreen() {
             ]}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Start your search</Text>
+              <Text style={styles.modalTitle}>{t("home.startSearch")}</Text>
               <Pressable
                 onPress={() => setModalVisible(false)}
                 style={styles.closeButton}
@@ -732,8 +740,8 @@ export default function HomeScreen() {
 
             <View style={styles.progressModeRow}>
               {[
-                { label: "One-time", value: "one-time" as const },
-                { label: "Long-term", value: "long-term" as const },
+                { label: t("home.oneTime"), value: "one-time" as const },
+                { label: t("home.longTerm"), value: "long-term" as const },
               ].map((item) => (
                 <Pressable
                   key={item.value}
@@ -759,7 +767,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.formCard}>
-              <Text style={styles.formCardTitle}>Where</Text>
+              <Text style={styles.formCardTitle}>{t("home.where")}</Text>
               <View style={styles.whereInlineInput}>
                 {Feather ? (
                   <Feather name="search" size={16} color="#86a8cf" />
@@ -768,7 +776,7 @@ export default function HomeScreen() {
                   style={styles.whereInputText}
                   placeholderTextColor="#86a8cf"
                   returnKeyType="search"
-                  placeholder="Search address or location"
+                  placeholder={t("home.searchAddress")}
                   value={where}
                   onChangeText={(value) => {
                     setWhere(value);
@@ -781,13 +789,13 @@ export default function HomeScreen() {
 
             <View style={styles.formCard}>
               <Text style={styles.formCardTitle}>
-                {mode === "long-term" ? "Dates" : "When"}
+                {mode === "long-term" ? t("home.dates") : t("home.when")}
               </Text>
               {mode === "one-time" ? (
                 <DateField
-                  label="Parking date"
-                  value={formatDisplayDate(oneTimeDate)}
-                  isSelected
+                  label={t("home.parkingDate")}
+                  value={formatDisplayDate(oneTimeDate, t("common.selectDate"))}
+                  isSelected={Boolean(oneTimeDate)}
                   onPress={() => {
                     setError("");
                     setActiveDatePicker("one-time");
@@ -796,8 +804,8 @@ export default function HomeScreen() {
               ) : (
                 <>
                   <DateField
-                    label="From date"
-                    value={formatDisplayDate(fromDate)}
+                    label={t("home.fromDate")}
+                    value={formatDisplayDate(fromDate, t("common.selectDate"))}
                     isSelected={Boolean(fromDate)}
                     onPress={() => {
                       setError("");
@@ -805,8 +813,8 @@ export default function HomeScreen() {
                     }}
                   />
                   <DateField
-                    label="To date"
-                    value={formatDisplayDate(toDate)}
+                    label={t("home.toDate")}
+                    value={formatDisplayDate(toDate, t("common.selectDate"))}
                     isSelected={Boolean(toDate)}
                     onPress={() => {
                       setError("");
@@ -818,14 +826,14 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.formCard}>
-              <Text style={styles.formCardTitle}>Type</Text>
+              <Text style={styles.formCardTitle}>{t("home.type")}</Text>
               {mode === "long-term" ? (
                 <View style={styles.privateOnlyCard}>
                   <Text style={styles.privateOnlyTitle}>
-                    Private parking only
+                    {t("home.privateOnly")}
                   </Text>
                   <Text style={styles.privateOnlyText}>
-                    Long-term searches automatically use private parking.
+                    {t("home.privateOnlyText")}
                   </Text>
                 </View>
               ) : (
@@ -849,7 +857,7 @@ export default function HomeScreen() {
                             styles.typeOptionTextActive,
                         ]}
                       >
-                        {item.label}
+                          {t(item.labelKey)}
                       </Text>
                     </Pressable>
                   ))}
@@ -875,8 +883,8 @@ export default function HomeScreen() {
               ) : (
                 <Text style={styles.formSearchButtonText}>
                   {mode === "long-term"
-                    ? "Search private parking"
-                    : "Search parking"}
+                    ? t("home.searchPrivateParking")
+                    : t("home.searchParking")}
                 </Text>
               )}
             </Pressable>
@@ -913,10 +921,10 @@ export default function HomeScreen() {
               >
                 <Text style={styles.datePickerTitle}>
                   {activeDatePicker === "one-time"
-                    ? "Select parking date"
+                    ? t("home.selectParkingDate")
                     : activeDatePicker === "from"
-                      ? "Select from date"
-                      : "Select to date"}
+                      ? t("home.selectFromDate")
+                      : t("home.selectToDate")}
                 </Text>
                 <DateTimePicker
                   value={
@@ -949,21 +957,24 @@ export default function HomeScreen() {
 function NearbyParkingCard({
   parking,
   formatPrice,
+  t,
   onPress,
 }: {
   parking: NearbyParking;
   formatPrice: (amountInEur: number) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
   onPress: () => void;
 }) {
-  const label = getAvailabilityLabel(parking);
+  const labelKey = getAvailabilityLabelKey(parking);
+  const label = t(labelKey);
   const statusStyle =
-    label === "Available"
+    labelKey === "common.available"
       ? {
           label,
           backgroundColor: "rgba(89,165,117,0.12)",
           color: theme.Colors.secondaryGreen,
         }
-      : label === "Limited" || label === "Few spots left"
+      : labelKey === "common.limited" || labelKey === "common.fewSpotsLeft"
         ? {
             label,
             backgroundColor: "rgba(245,158,11,0.13)",
@@ -977,10 +988,10 @@ function NearbyParkingCard({
 
   const availabilityText =
     parking.availabilityStatus === "FULL"
-      ? "Full"
+      ? t("common.full")
       : parking.availabilityStatus === "LIMITED"
-        ? `${parking.availableSpots} free`
-        : `${parking.availableSpots} free`;
+        ? t("common.free", { count: parking.availableSpots })
+        : t("common.free", { count: parking.availableSpots });
   const progressWidth = `${Math.max(
     4,
     Math.min(
@@ -1006,11 +1017,13 @@ function NearbyParkingCard({
               {parking.name}
             </Text>
             <Text style={styles.nearbyDistance} numberOfLines={1}>
-              {formatDistance(parking.distanceKm)} · {formatParkingType(parking.parkingType)} · ★ 4.8
+              {formatDistance(parking.distanceKm, t)} ·{" "}
+              {formatParkingType(parking.parkingType, t)} · ★ 4.8
             </Text>
           </View>
           <Text style={styles.nearbyPrice}>
-            {formatPrice(parking.pricePerHour)}/hr
+            {formatPrice(parking.pricePerHour)}
+            {t("common.perHour")}
           </Text>
         </View>
 

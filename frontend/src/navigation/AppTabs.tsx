@@ -2,6 +2,7 @@ import React from "react";
 import { Text, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
@@ -69,6 +70,8 @@ function ReservationsStackScreen() {
 }
 
 export default function AppTabs() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -94,17 +97,17 @@ export default function AppTabs() {
       <Tab.Screen
         name="HomeTab"
         component={HomeStackScreen}
-        options={{ tabBarLabel: "Home" }}
+        options={{ tabBarLabel: t("tabs.home") }}
       />
       <Tab.Screen
         name="Reservations"
         component={ReservationsStackScreen}
-        options={{ tabBarLabel: "Reservations" }}
+        options={{ tabBarLabel: t("tabs.reservations") }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarLabel: "Profile" }}
+        options={{ tabBarLabel: t("tabs.profile") }}
       />
     </Tab.Navigator>
   );

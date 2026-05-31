@@ -14,6 +14,7 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Region } from "react-native-maps";
+import { useTranslation } from "react-i18next";
 
 import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
@@ -59,6 +60,7 @@ const getMarkerColor = (
 };
 
 export default function SearchResultsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<any>();
   const initialResults = (route.params?.results ?? []) as ParkingSummary[];
@@ -73,17 +75,19 @@ export default function SearchResultsScreen() {
     initialResults[0]?.id ?? null
   );
 
-  const title = search?.location?.trim() || "All locations";
+  const title = search?.location?.trim() || t("search.allLocations");
   const selectedType =
     search?.parkingType && search.parkingType !== "all"
       ? search.parkingType === "PUBLIC"
-        ? "Public"
-        : "Private"
-      : "All types";
+        ? t("common.public")
+        : t("common.private")
+      : t("search.allTypes");
   const timing =
     search?.mode === "long-term"
-      ? `${search.fromDate ?? "From date"} - ${search.toDate ?? "To date"} · ${selectedType}`
-      : `${search?.date ?? "Today"} · ${selectedType}`;
+      ? `${search.fromDate ?? t("search.fromDate")} - ${
+          search.toDate ?? t("search.toDate")
+        } · ${selectedType}`
+      : `${search?.date ?? t("search.today")} · ${selectedType}`;
 
   const refreshResults = React.useCallback(async () => {
     try {
@@ -199,31 +203,27 @@ export default function SearchResultsScreen() {
     const badge =
       item.availabilityStatus === "AVAILABLE"
         ? {
-            label: "Available",
+            label: t("common.available"),
             backgroundColor: "rgba(89,165,117,0.12)",
             color: theme.Colors.secondaryGreen,
           }
         : item.availabilityStatus === "LIMITED"
           ? {
-              label: "Limited",
+              label: t("common.limited"),
               backgroundColor: "rgba(245,158,11,0.13)",
               color: "#b45309",
             }
           : {
-              label: "Full",
+              label: t("common.full"),
               backgroundColor: "rgba(239,68,68,0.1)",
               color: theme.Colors.error,
             };
     const availabilityText =
       item.availabilityStatus === "FULL"
-        ? "No spots available"
+        ? t("search.noSpotsAvailable")
         : item.availabilityStatus === "LIMITED"
-          ? `Only ${item.availableSpots} spot${
-              item.availableSpots === 1 ? "" : "s"
-            } left`
-          : `${item.availableSpots} spot${
-              item.availableSpots === 1 ? "" : "s"
-            } available`;
+          ? t("search.onlySpotsLeft", { count: item.availableSpots })
+          : t("search.spotsAvailable", { count: item.availableSpots });
 
     return (
       <Pressable
@@ -262,11 +262,14 @@ export default function SearchResultsScreen() {
 
           <View style={styles.metaRow}>
             <Text style={styles.availabilityText}>{availabilityText}</Text>
-            <Text style={styles.price}>{formatPrice(item.pricePerHour)}/hr</Text>
+            <Text style={styles.price}>
+              {formatPrice(item.pricePerHour)}
+              {t("common.perHour")}
+            </Text>
           </View>
 
           <Text style={[styles.detailsLink, isFull && styles.detailsLinkDisabled]}>
-            {isFull ? "No spots available" : "View details"}
+            {isFull ? t("search.noSpotsAvailable") : t("search.viewDetails")}
           </Text>
         </Card>
       </Pressable>
@@ -321,7 +324,8 @@ export default function SearchResultsScreen() {
                   ]}
                 >
                   <Text style={styles.priceMarkerText}>
-                    {formatPrice(item.pricePerHour)}/hr
+                    {formatPrice(item.pricePerHour)}
+                    {t("common.perHour")}
                   </Text>
                 </View>
               </Marker>
@@ -345,9 +349,12 @@ export default function SearchResultsScreen() {
             </Text>
             <Text style={styles.mapPreviewSubtitle} numberOfLines={1}>
               {selectedParking.availabilityStatus === "FULL"
-                ? "No spots available"
-                : `${selectedParking.availableSpots} spots available`}{" "}
-              · {formatPrice(selectedParking.pricePerHour)}/hr
+                ? t("search.noSpotsAvailable")
+                : t("search.spotsAvailable", {
+                    count: selectedParking.availableSpots,
+                  })}{" "}
+              · {formatPrice(selectedParking.pricePerHour)}
+              {t("common.perHour")}
             </Text>
           </Pressable>
         ) : null}
@@ -355,7 +362,9 @@ export default function SearchResultsScreen() {
 
       <View style={styles.resultsHeader}>
         <View style={styles.resultsHeaderRow}>
-          <Text style={theme.Typography.subtitle}>Available parking</Text>
+          <Text style={theme.Typography.subtitle}>
+            {t("search.availableParking")}
+          </Text>
           {token ? (
             <Pressable
               disabled={isSimulating || results.length === 0}
@@ -368,22 +377,24 @@ export default function SearchResultsScreen() {
               {isSimulating ? (
                 <ActivityIndicator size="small" color={theme.Colors.primary} />
               ) : (
-                <Text style={styles.simulateText}>Simulate update</Text>
+                <Text style={styles.simulateText}>{t("search.simulateUpdate")}</Text>
               )}
             </Pressable>
           ) : null}
         </View>
         <Text style={styles.resultCount}>
-          {results.length} result{results.length === 1 ? "" : "s"} ·{" "}
+          {t("search.resultsCount", { count: results.length })} ·{" "}
           {search?.parkingType === "all" || !search?.parkingType
-            ? "All types"
-            : search.parkingType}
+            ? t("search.allTypes")
+            : search.parkingType === "PUBLIC"
+              ? t("common.public")
+              : t("common.private")}
         </Text>
       </View>
 
       {results.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No parking options found</Text>
+          <Text style={styles.emptyText}>{t("search.noOptions")}</Text>
         </View>
       ) : (
         <FlatList

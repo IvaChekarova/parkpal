@@ -19,6 +19,7 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Button from "../components/Button";
@@ -147,11 +148,12 @@ type ToastState = {
 };
 
 const getAvailabilityBadge = (
-  status: "AVAILABLE" | "LIMITED" | "FULL" | undefined
+  status: "AVAILABLE" | "LIMITED" | "FULL" | undefined,
+  t: (key: string) => string
 ) => {
   if (status === "LIMITED") {
     return {
-      label: "Limited",
+      label: t("common.limited"),
       backgroundColor: "rgba(245,158,11,0.13)",
       color: "#b45309",
       dotColor: "#b45309",
@@ -160,7 +162,7 @@ const getAvailabilityBadge = (
 
   if (status === "FULL") {
     return {
-      label: "Full",
+      label: t("common.full"),
       backgroundColor: "rgba(2,6,23,0.06)",
       color: theme.Colors.textSecondary,
       dotColor: theme.Colors.border,
@@ -168,7 +170,7 @@ const getAvailabilityBadge = (
   }
 
   return {
-    label: "Available",
+    label: t("common.available"),
     backgroundColor: "rgba(89,165,117,0.12)",
     color: theme.Colors.secondaryGreen,
     dotColor: theme.Colors.secondaryGreen,
@@ -176,6 +178,7 @@ const getAvailabilityBadge = (
 };
 
 export default function ParkingDetailsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const route: any = useRoute();
   const insets = useSafeAreaInsets();
@@ -226,7 +229,7 @@ export default function ParkingDetailsScreen() {
           }
         } catch (_err) {
           if (isMounted) {
-            setError("Unable to load parking details. Please try again.");
+            setError(t("parking.detailsLoadFailed"));
           }
         } finally {
           if (isMounted) {
@@ -240,7 +243,7 @@ export default function ParkingDetailsScreen() {
       return () => {
         isMounted = false;
       };
-    }, [parkingId])
+    }, [parkingId, t])
   );
 
   const data = parking
@@ -255,14 +258,14 @@ export default function ParkingDetailsScreen() {
         price: parking.pricePerHour,
         distance: parking.city,
         open: parking.availableSpots > 0,
-        hours: "Open daily",
+        hours: "",
         description:
           parking.description ??
-          "Convenient ParkPal parking with real-time spot availability.",
+          t("parking.defaultDescription"),
         amenities:
           parking.parkingType === "PRIVATE"
-            ? ["Private parking", "Limited access", "Verified location"]
-            : ["Public parking", "Easy access", "Verified location"],
+            ? [t("parking.privateFeature"), t("parking.limitedFeature"), t("parking.verified")]
+            : [t("parking.publicFeature"), t("parking.easyFeature"), t("parking.verified")],
       }
     : legacyParking
       ? {
@@ -276,21 +279,19 @@ export default function ParkingDetailsScreen() {
           price: legacyParking.price,
           distance: "",
           open: true,
-          hours: "Open daily",
+          hours: "",
           description:
-            "Convenient ParkPal parking with real-time spot availability.",
-          amenities: ["Verified location", "Easy access"],
+            t("parking.defaultDescription"),
+          amenities: [t("parking.verified"), t("parking.easyFeature")],
         }
       : null;
-  const availabilityBadge = getAvailabilityBadge(data?.availabilityStatus);
+  const availabilityBadge = getAvailabilityBadge(data?.availabilityStatus, t);
   const availabilityPrimaryText =
     data?.availabilityStatus === "FULL"
-      ? "No spots available"
+      ? t("search.noSpotsAvailable")
       : data?.availabilityStatus === "LIMITED"
-        ? `Only ${data.spotsAvailable} spot${
-            data.spotsAvailable === 1 ? "" : "s"
-          } left`
-        : "spots available";
+        ? t("search.onlySpotsLeft", { count: data.spotsAvailable })
+        : t("search.spotsAvailable", { count: data?.spotsAvailable ?? 0 });
 
   const isLongTermReservation = search?.mode === "long-term";
   const selectedReservationDate = isLongTermReservation
@@ -351,15 +352,15 @@ export default function ParkingDetailsScreen() {
     minEndDate && maxEndDate ? buildTimeSlots(minEndDate, maxEndDate) : [];
   const getTimeValidationMessage = () => {
     if (!selectedStartTime || !selectedEndTime) {
-      return "Please select start and end time.";
+      return t("parking.selectTimes");
     }
 
     if (!selectedStartDate || !selectedEndDate) {
-      return "Please select valid start and end time.";
+      return t("parking.selectValidTimes");
     }
 
     if (selectedEndDate <= selectedStartDate) {
-      return "End time must be after start time.";
+      return t("parking.endAfterStart");
     }
 
     if (isLongTermReservation) {
@@ -369,19 +370,19 @@ export default function ParkingDetailsScreen() {
       );
 
       if (days < 1) {
-        return "Long-term reservations must be at least 1 day.";
+        return t("validation.longTermMin");
       }
 
       if (days > 30) {
-        return "Long-term reservations can be up to 30 days.";
+        return t("validation.longTermMax");
       }
 
       if (selectedStartDate < minStartDate || selectedStartDate > closesAtDate) {
-        return "Reservation is outside parking working hours.";
+        return t("parking.outsideHours");
       }
 
       if (selectedEndDate < endOpensAtDate || selectedEndDate > endClosesAtDate) {
-        return "Reservation is outside parking working hours.";
+        return t("parking.outsideHours");
       }
 
       return "";
@@ -390,19 +391,19 @@ export default function ParkingDetailsScreen() {
     const duration = getDurationHours(selectedStartTime, selectedEndTime);
 
     if (duration < 1) {
-      return "One-time reservations require at least 1 hour.";
+      return t("parking.oneTimeMin");
     }
 
     if (duration > 6) {
-      return "One-time reservations can be up to 6 hours.";
+      return t("parking.oneTimeMax");
     }
 
     if (selectedStartDate < minStartDate) {
-      return `Start time must be ${formatTime(minStartDate)} or later.`;
+      return t("parking.startAfter", { time: formatTime(minStartDate) });
     }
 
     if (selectedEndDate > closesAtDate) {
-      return `End time must be before ${FALLBACK_WORKING_HOURS.closesAt}.`;
+      return t("parking.endBefore", { time: FALLBACK_WORKING_HOURS.closesAt });
     }
 
     return "";
@@ -424,11 +425,11 @@ export default function ParkingDetailsScreen() {
     activeTimePicker === "start" ? startTimeOptions : endTimeOptions;
   const activeTimeMessage =
     activeTimePicker === "start" && startTimeOptions.length === 0
-      ? "No available time slots for this date."
+      ? t("parking.noTimeSlots")
       : activeTimePicker === "end" && !selectedStartTime
-        ? "Select a start time first."
+        ? t("parking.selectStartFirst")
         : activeTimePicker === "end" && endTimeOptions.length === 0
-          ? "No available time slots for this date."
+          ? t("parking.noTimeSlots")
           : "";
 
   const handleTimeSelect = (timeValue: string) => {
@@ -518,11 +519,11 @@ export default function ParkingDetailsScreen() {
     try {
       const updatedParking = await parkingApi.demoRandomUpdate(token, parkingId);
       setParking(updatedParking);
-      setToast({ message: "Availability updated", variant: "success" });
+      setToast({ message: t("parking.availabilityUpdated"), variant: "success" });
     } catch (err) {
       setToast({
         message:
-          err instanceof Error ? err.message : "Unable to simulate update.",
+          err instanceof Error ? err.message : t("parking.simulateFailed"),
         variant: "error",
       });
     } finally {
@@ -540,7 +541,7 @@ export default function ParkingDetailsScreen() {
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       setToast({
-        message: "Navigation is unavailable for this parking.",
+        message: t("parking.navigateUnavailable"),
         variant: "error",
       });
       return;
@@ -558,7 +559,7 @@ export default function ParkingDetailsScreen() {
       await Linking.openURL(canOpenNativeUrl ? nativeUrl : fallbackUrl);
     } catch (_err) {
       setToast({
-        message: "Unable to open maps.",
+        message: t("parking.navigateUnavailable"),
         variant: "error",
       });
     }
@@ -570,12 +571,12 @@ export default function ParkingDetailsScreen() {
     }
 
     if (!parkingId || !parking) {
-      setReservationError("Unable to reserve this parking location.");
+      setReservationError(t("parking.reservationFailed"));
       return;
     }
 
     if (!token) {
-      Alert.alert("Sign in required", "Please log in before reserving parking.");
+      Alert.alert(t("parking.signInRequired"), t("parking.signInRequiredBody"));
       return;
     }
 
@@ -600,7 +601,7 @@ export default function ParkingDetailsScreen() {
         token
       );
 
-      setToast({ message: "Reservation confirmed", variant: "success" });
+      setToast({ message: t("parking.reservationConfirmed"), variant: "success" });
       setSelectedStartTime(null);
       setSelectedEndTime(null);
       setAttemptedConfirm(false);
@@ -609,10 +610,10 @@ export default function ParkingDetailsScreen() {
       setParking(updatedParking);
     } catch (err) {
       setReservationError(
-        err instanceof Error ? err.message : "Unable to reserve spot."
+        err instanceof Error ? err.message : t("parking.reservationFailed")
       );
       setToast({
-        message: err instanceof Error ? err.message : "Unable to reserve spot.",
+        message: err instanceof Error ? err.message : t("parking.reservationFailed"),
         variant: "error",
       });
     } finally {
@@ -637,18 +638,18 @@ export default function ParkingDetailsScreen() {
 
   const featureChips = Array.from(
     new Set([
-      "Verified",
-      parking?.parkingType === "PRIVATE" ? "Private" : "Public",
-      parking?.parkingType === "PRIVATE" ? "Limited" : "Easy",
+      t("parking.verified"),
+      parking?.parkingType === "PRIVATE" ? t("parking.privateFeature") : t("parking.publicFeature"),
+      parking?.parkingType === "PRIVATE" ? t("parking.limitedFeature") : t("parking.easyFeature"),
     ])
   ).slice(0, 3);
   const durationLabel = isLongTermReservation
-    ? `${longTermDays} day${longTermDays === 1 ? "" : "s"}`
+    ? t("parking.days", { count: longTermDays })
     : durationHours > 0
       ? `${Math.floor(durationHours)}h${
           durationHours % 1 ? ` ${Math.round((durationHours % 1) * 60)}m` : ""
         }`
-      : "Select times";
+      : t("parking.selectTimesPlaceholder");
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -661,11 +662,11 @@ export default function ParkingDetailsScreen() {
           <View style={styles.stateContainer}>
             <Text style={styles.stateText}>{error}</Text>
             <View style={{ height: theme.Spacing.md }} />
-            <Button title="Go back" variant="outline" onPress={navigation.goBack} />
+            <Button title={t("parking.goBack")} variant="outline" onPress={navigation.goBack} />
           </View>
         ) : !data ? (
           <View style={styles.stateContainer}>
-            <Text style={styles.stateText}>Parking location not found</Text>
+            <Text style={styles.stateText}>{t("parking.locationNotFound")}</Text>
           </View>
         ) : (
           <>
@@ -737,29 +738,29 @@ export default function ParkingDetailsScreen() {
             <View style={styles.content}>
               <View style={styles.quickInfoGrid}>
                 <InfoTile
-                  label="Price"
-                  value={`${formatPrice(data.price)}/hr`}
+                  label={t("parking.price")}
+                  value={`${formatPrice(data.price)}${t("common.perHour")}`}
                   iconName="dollar-sign"
                 />
                 <InfoTile
-                  label="Available"
+                  label={t("parking.availability")}
                   value={
                     data.availabilityStatus === "FULL"
-                      ? "Full"
-                      : `${data.spotsAvailable} spots`
+                      ? t("common.full")
+                      : t("parking.spots", { count: data.spotsAvailable })
                   }
                   iconName="truck"
                 />
                 <InfoTile
-                  label="Type"
-                  value={parking?.parkingType === "PRIVATE" ? "Covered" : "Open Air"}
+                  label={t("parking.type")}
+                  value={parking?.parkingType === "PRIVATE" ? t("home.covered") : t("home.openAir")}
                   iconName="map-pin"
                 />
               </View>
 
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Features</Text>
+                  <Text style={styles.sectionTitle}>{t("parking.features")}</Text>
                 </View>
                 <View style={styles.amenitiesRow}>
                   {featureChips.map((a: string) => (
@@ -776,22 +777,22 @@ export default function ParkingDetailsScreen() {
               <View style={styles.reservationCard}>
                 <View style={styles.sectionHeaderRow}>
                   <View>
-                    <Text style={styles.sectionTitle}>Book your spot</Text>
+                    <Text style={styles.sectionTitle}>{t("parking.bookSpot")}</Text>
                   </View>
                 </View>
 
                 <View style={styles.timeGrid}>
                   <TimeField
-                    label="Start time"
+                    label={t("parking.startTime")}
                     value={selectedStartTime}
-                    placeholder="Select start"
+                    placeholder={t("parking.selectStart")}
                     onPress={() => setActiveTimePicker("start")}
                     disabled={startTimeOptions.length === 0}
                   />
                   <TimeField
-                    label="End time"
+                    label={t("parking.endTime")}
                     value={selectedEndTime}
-                    placeholder={selectedStartTime ? "Select end" : "Start first"}
+                    placeholder={selectedStartTime ? t("parking.selectEnd") : t("parking.startFirst")}
                     onPress={() => setActiveTimePicker("end")}
                     disabled={!selectedStartTime || endTimeOptions.length === 0}
                   />
@@ -799,24 +800,27 @@ export default function ParkingDetailsScreen() {
 
                 {startTimeOptions.length === 0 ? (
                   <Text style={styles.reserveErrorText}>
-                    No available time slots for this date.
+                    {t("parking.noTimeSlots")}
                   </Text>
                 ) : (
                   <Text style={styles.workingHoursText}>
                     {isLongTermReservation
-                      ? `Start from ${formatTime(minStartDate)}. End within working hours.`
-                      : `Available ${formatTime(minStartDate)} - ${FALLBACK_WORKING_HOURS.closesAt}`}
+                      ? t("parking.startFrom", { time: formatTime(minStartDate) })
+                      : t("parking.availableWindow", {
+                          start: formatTime(minStartDate),
+                          end: FALLBACK_WORKING_HOURS.closesAt,
+                        })}
                   </Text>
                 )}
 
                 <View style={styles.priceSummary}>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.reserveMuted}>Duration</Text>
+                    <Text style={styles.reserveMuted}>{t("parking.duration")}</Text>
                     <Text style={styles.summaryValue}>{durationLabel}</Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={styles.reserveMuted}>
-                      {isLongTermReservation ? "Daily estimate" : "Price per hour"}
+                      {isLongTermReservation ? t("parking.dailyEstimate") : t("parking.pricePerHour")}
                     </Text>
                     <Text style={styles.summaryValue}>
                       {isLongTermReservation
@@ -825,7 +829,7 @@ export default function ParkingDetailsScreen() {
                     </Text>
                   </View>
                   <View style={styles.summaryTotalRow}>
-                    <Text style={styles.totalLabel}>Estimated total</Text>
+                    <Text style={styles.totalLabel}>{t("parking.estimatedTotal")}</Text>
                     <Text style={styles.totalValue}>
                       {formatPrice(estimatedTotal)}
                     </Text>
@@ -845,7 +849,7 @@ export default function ParkingDetailsScreen() {
                     pressed && { opacity: 0.84 },
                   ]}
                 >
-                  <Text style={styles.viewMapButtonText}>View on map</Text>
+                  <Text style={styles.viewMapButtonText}>{t("parking.viewOnMap")}</Text>
                 </Pressable>
 
                 <Pressable
@@ -861,7 +865,7 @@ export default function ParkingDetailsScreen() {
                   {isReserving ? (
                     <ActivityIndicator color="#071426" />
                   ) : (
-                    <Text style={styles.reserveCtaText}>Reserve Spot</Text>
+                    <Text style={styles.reserveCtaText}>{t("parking.reserveSpot")}</Text>
                   )}
                 </Pressable>
 
@@ -877,7 +881,7 @@ export default function ParkingDetailsScreen() {
                     {isSimulating ? (
                       <ActivityIndicator size="small" color="#38bdf8" />
                     ) : (
-                      <Text style={styles.simulateText}>Simulate availability update</Text>
+                      <Text style={styles.simulateText}>{t("parking.simulateUpdate")}</Text>
                     )}
                   </Pressable>
                 ) : null}
@@ -904,8 +908,8 @@ export default function ParkingDetailsScreen() {
           <Pressable style={styles.timePickerPopup}>
                   <Text style={styles.timePickerTitle}>
                     {activeTimePicker === "start"
-                      ? "Select start time"
-                      : "Select end time"}
+                      ? t("parking.selectStartTime")
+                      : t("parking.selectEndTime")}
                   </Text>
                   {activeTimeOptions.length > 0 ? (
                     <ScrollView

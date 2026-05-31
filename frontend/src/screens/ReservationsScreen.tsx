@@ -12,6 +12,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
@@ -27,9 +28,9 @@ type ReservationPaymentStatus = NonNullable<
   Reservation["payment"]
 >["paymentStatus"];
 
-const RESERVATION_TYPE_TABS: { label: string; value: ReservationTypeTab }[] = [
-  { label: "One-time", value: "ONE_TIME" },
-  { label: "Long-term", value: "LONG_TERM" },
+const RESERVATION_TYPE_TABS: { labelKey: string; value: ReservationTypeTab }[] = [
+  { labelKey: "reservations.oneTime", value: "ONE_TIME" },
+  { labelKey: "reservations.longTerm", value: "LONG_TERM" },
 ];
 const ONE_TIME_CANCELLATION_WINDOW_MS = 30 * 60 * 1000;
 const LONG_TERM_CANCELLATION_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -37,13 +38,6 @@ const LONG_TERM_CANCELLATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 type ToastState = {
   message: string;
   variant: "neutral" | "error";
-};
-
-const statusLabel = (status: Reservation["status"]) => {
-  if (status === "ACTIVE") return "Active";
-  if (status === "COMPLETED") return "Completed";
-  if (status === "CANCELLED") return "Cancelled";
-  return "Upcoming";
 };
 
 const statusStyle = (status: Reservation["status"]) => {
@@ -72,12 +66,6 @@ const statusStyle = (status: Reservation["status"]) => {
     backgroundColor: "rgba(56,189,248,0.13)",
     color: "#38bdf8",
   };
-};
-
-const paymentLabel = (status?: ReservationPaymentStatus) => {
-  if (status === "PAID") return "Paid";
-  if (status === "FAILED") return "Failed";
-  return "Pending";
 };
 
 const paymentStyle = (status?: ReservationPaymentStatus) => {
@@ -109,14 +97,17 @@ const formatDate = (value: string) => {
   });
 };
 
-const formatDuration = (minutes: number) => {
+const formatDuration = (
+  minutes: number,
+  t: (key: string, options?: Record<string, unknown>) => string
+) => {
   if (minutes < 1440) {
     const hours = minutes / 60;
     return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
   }
 
   const days = Math.ceil(minutes / 1440);
-  return `${days} day${days === 1 ? "" : "s"}`;
+  return t("parking.days", { count: days });
 };
 
 const canCancelReservation = (reservation: Reservation) => {
@@ -134,6 +125,7 @@ const canCancelReservation = (reservation: Reservation) => {
 };
 
 export default function ReservationsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
@@ -161,12 +153,12 @@ export default function ReservationsScreen() {
       setReservations(results);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to load reservations."
+        err instanceof Error ? err.message : t("reservations.unableLoad")
       );
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -194,11 +186,11 @@ export default function ReservationsScreen() {
       setReservations((current) =>
         current.map((item) => (item.id === cancelled.id ? cancelled : item))
       );
-      setToast({ message: "Reservation cancelled", variant: "neutral" });
+      setToast({ message: t("reservations.cancelledToast"), variant: "neutral" });
     } catch (err) {
       setToast({
         message:
-          err instanceof Error ? err.message : "Unable to cancel reservation.",
+          err instanceof Error ? err.message : t("reservations.unableCancel"),
         variant: "error",
       });
     } finally {
@@ -208,15 +200,15 @@ export default function ReservationsScreen() {
 
   const confirmCancelReservation = (reservation: Reservation) => {
     Alert.alert(
-      "Cancel reservation?",
-      "This action cannot be undone.",
+      t("reservations.cancelTitle"),
+      t("reservations.cancelMessage"),
       [
         {
-          text: "Keep reservation",
+          text: t("reservations.keepReservation"),
           style: "cancel",
         },
         {
-          text: "Cancel reservation",
+          text: t("reservations.cancelReservation"),
           style: "destructive",
           onPress: () => {
             void cancelReservation(reservation);
@@ -260,7 +252,7 @@ export default function ReservationsScreen() {
                   { color: badge.color },
                 ]}
               >
-                {statusLabel(item.status)}
+                {t(`status.${item.status}`)}
               </Text>
             </View>
           </View>
@@ -268,7 +260,8 @@ export default function ReservationsScreen() {
 
         <View style={styles.rowBottom}>
           <Text style={styles.cardMeta}>
-            {formatDate(item.startTime)} • {formatDuration(item.durationMinutes)}
+            {formatDate(item.startTime)} •{" "}
+            {formatDuration(item.durationMinutes, t)}
           </Text>
           <Text style={styles.cardPrice}>
             {formatPrice(item.pricing.totalPrice)}
@@ -283,7 +276,7 @@ export default function ReservationsScreen() {
             ]}
           >
             <Text style={[styles.paymentText, { color: paymentBadge.color }]}>
-              {paymentLabel(item.payment?.paymentStatus)}
+              {t(`status.${item.payment?.paymentStatus ?? "PENDING"}`)}
             </Text>
           </View>
         </View>
@@ -306,10 +299,10 @@ export default function ReservationsScreen() {
                 ]}
               >
                 {isCancelling
-                  ? "Cancelling..."
+                  ? t("reservations.cancelling")
                   : isCancellable
-                    ? "Cancel"
-                    : "Cancellation closed"}
+                    ? t("reservations.cancel")
+                    : t("reservations.cancellationClosed")}
               </Text>
             </Pressable>
           </View>
@@ -323,7 +316,7 @@ export default function ReservationsScreen() {
       <AppHeader />
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.screenTitle}>Your reservations</Text>
+          <Text style={styles.screenTitle}>{t("reservations.title")}</Text>
           <Pressable
             onPress={() => navigation.navigate("ReservationHistory")}
             style={({ pressed }) => [
@@ -331,7 +324,7 @@ export default function ReservationsScreen() {
               pressed && { opacity: 0.82 },
             ]}
           >
-            <Text style={styles.historyText}>View history</Text>
+            <Text style={styles.historyText}>{t("reservations.history")}</Text>
           </Pressable>
         </View>
 
@@ -355,7 +348,7 @@ export default function ReservationsScreen() {
                     isActive && styles.segmentTextActive,
                   ]}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Text>
               </Pressable>
             );
@@ -375,29 +368,29 @@ export default function ReservationsScreen() {
         <ScrollView contentContainerStyle={styles.listContent}>
           {active.length > 0 ? (
             <View>
-              <Text style={styles.sectionTitle}>Active</Text>
+              <Text style={styles.sectionTitle}>{t("reservations.active")}</Text>
               {active.map((item) => (
                 <View key={item.id}>{renderCard(item, true)}</View>
               ))}
             </View>
           ) : (
             <View>
-              <Text style={styles.sectionTitle}>Active</Text>
-              <EmptyState title="No active reservations" />
+              <Text style={styles.sectionTitle}>{t("reservations.active")}</Text>
+              <EmptyState title={t("reservations.noActive")} />
             </View>
           )}
 
           {upcoming.length > 0 ? (
             <View style={{ marginTop: theme.Spacing.md }}>
-              <Text style={styles.sectionTitle}>Upcoming</Text>
+              <Text style={styles.sectionTitle}>{t("reservations.upcoming")}</Text>
               {upcoming.map((item) => (
                 <View key={item.id}>{renderCard(item)}</View>
               ))}
             </View>
           ) : (
             <View style={{ marginTop: theme.Spacing.md }}>
-              <Text style={styles.sectionTitle}>Upcoming</Text>
-              <EmptyState title="No upcoming reservations" />
+              <Text style={styles.sectionTitle}>{t("reservations.upcoming")}</Text>
+              <EmptyState title={t("reservations.noUpcoming")} />
             </View>
           )}
         </ScrollView>

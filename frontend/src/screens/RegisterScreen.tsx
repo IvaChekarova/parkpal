@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import ScreenWrapper from "../components/ScreenWrapper";
 import Input from "../components/Input";
 import Button from "../components/Button";
@@ -21,6 +22,7 @@ import { useAuth } from "../context/AuthContext";
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { register } = useAuth();
   const [fullName, setFullName] = useState("");
@@ -49,7 +51,7 @@ export default function RegisterScreen() {
         password,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to register");
+      setError(err instanceof Error ? err.message : t("auth.unableToRegister"));
     } finally {
       setIsLoading(false);
     }
@@ -64,22 +66,22 @@ export default function RegisterScreen() {
         <View style={styles.topSection}>
           <Logo size={72} style={styles.logo} />
           <SectionTitle small>{"ParkPal"}</SectionTitle>
-          <Text style={styles.subtitle}>Create your account</Text>
+          <Text style={styles.subtitle}>{t("auth.createAccount")}</Text>
           <Text style={styles.support}>
-            Join ParkPal and reserve parking with less stress.
+            {t("auth.registerSupport")}
           </Text>
         </View>
 
         <View style={styles.cardWrapper}>
           <View style={styles.cardInner}>
             <Input
-              placeholder="Full name"
+              placeholder={t("auth.fullName")}
               value={fullName}
               onChangeText={setFullName}
             />
             <View style={{ height: theme.Spacing.sm }} />
             <Input
-              placeholder="Email"
+              placeholder={t("auth.email")}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -87,14 +89,14 @@ export default function RegisterScreen() {
             />
             <View style={{ height: theme.Spacing.sm }} />
             <Input
-              placeholder="Password"
+              placeholder={t("auth.password")}
               secureTextEntry
               value={password}
               onChangeText={setPassword}
             />
             <View style={{ height: theme.Spacing.sm }} />
             <Input
-              placeholder="Confirm password"
+              placeholder={t("auth.confirmPassword")}
               secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -103,7 +105,7 @@ export default function RegisterScreen() {
             <View style={{ height: theme.Spacing.md }} />
 
             <Button
-              title={isLoading ? "Creating account..." : "Create Account"}
+              title={isLoading ? t("auth.creatingAccount") : t("auth.createAccountButton")}
               disabled={!canCreate || isLoading}
               onPress={handleRegister}
               style={{
@@ -115,9 +117,9 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.bottomRow}>
-            <Text style={styles.bottomText}>Already have an account? </Text>
+            <Text style={styles.bottomText}>{t("auth.alreadyHaveAccount")}</Text>
             <Pressable onPress={() => navigation.navigate("Welcome")}>
-              <Text style={styles.loginLink}>Log in</Text>
+              <Text style={styles.loginLink}>{t("auth.logInLink")}</Text>
             </Pressable>
           </View>
         </View>
