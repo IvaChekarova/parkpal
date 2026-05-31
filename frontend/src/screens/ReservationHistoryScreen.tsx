@@ -15,6 +15,7 @@ import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency } from "../context/CurrencyContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import type { RootStackParamList } from "../navigation/types";
 import { reservationApi, Reservation } from "../services/reservationApi";
 import theme from "../theme";
@@ -88,6 +89,8 @@ export default function ReservationHistoryScreen() {
   const navigation = useNavigation<NavProp>();
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const [history, setHistory] = React.useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -138,10 +141,10 @@ export default function ReservationHistoryScreen() {
   );
 
   return (
-    <ScreenWrapper style={styles.screen}>
+    <ScreenWrapper style={[styles.screen, { backgroundColor: colors.background }]}>
       <AppHeader />
 
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => navigation.goBack()}
@@ -154,36 +157,46 @@ export default function ReservationHistoryScreen() {
             <Text style={styles.backIcon}>←</Text>
           </Pressable>
           <View style={styles.titleBlock}>
-            <Text style={styles.screenTitle}>{t("reservations.historyTitle")}</Text>
+            <Text style={[styles.screenTitle, { color: colors.text }]}>
+              {t("reservations.historyTitle")}
+            </Text>
           </View>
         </View>
       </View>
 
       {isLoading ? (
-        <View style={styles.empty}>
+        <View style={[styles.empty, { backgroundColor: colors.background }]}>
           <ActivityIndicator color="#38bdf8" />
         </View>
       ) : error ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>{error}</Text>
+        <View style={[styles.empty, { backgroundColor: colors.background }]}>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>{error}</Text>
         </View>
       ) : (
         <FlatList
           data={history}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { backgroundColor: colors.background },
+          ]}
           renderItem={({ item }) => {
             const badge = statusStyle(item.status);
             const paymentBadge = paymentStyle(item.payment?.paymentStatus);
 
             return (
-              <View style={styles.card}>
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
                 <View style={styles.rowTop}>
                   <View style={styles.cardTitleBlock}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
                       {item.parking.name}
                     </Text>
-                    <Text style={styles.cardAddress} numberOfLines={2}>
+                    <Text style={[styles.cardAddress, { color: colors.textMuted }]} numberOfLines={2}>
                       {item.parking.address}, {item.parking.city}
                     </Text>
                   </View>
@@ -201,7 +214,7 @@ export default function ReservationHistoryScreen() {
                 </View>
 
                 <View style={styles.rowBottom}>
-                  <Text style={styles.cardMeta}>
+                  <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
                     {formatDate(item.startTime)} •{" "}
                     {formatDuration(item.durationMinutes, t)}
                   </Text>
@@ -236,14 +249,23 @@ export default function ReservationHistoryScreen() {
 
 function EmptyState() {
   const { t } = useTranslation();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
 
   return (
-    <View style={styles.emptyCard}>
+    <View
+      style={[
+        styles.emptyCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.emptyIcon}>
         <Text style={styles.emptyIconText}>P</Text>
       </View>
-      <Text style={styles.emptyTitle}>{t("reservations.noHistory")}</Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+        {t("reservations.noHistory")}
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
         {t("reservations.historyEmptyText")}
       </Text>
     </View>

@@ -20,6 +20,7 @@ import Card from "../components/Card";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency } from "../context/CurrencyContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import {
   parkingApi,
   ParkingDetails,
@@ -67,6 +68,8 @@ export default function SearchResultsScreen() {
   const search = route.params?.search as SearchData | undefined;
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const mapRef = React.useRef<MapView | null>(null);
   const listRef = React.useRef<FlatList<ParkingSummary> | null>(null);
   const [results, setResults] = React.useState<ParkingSummary[]>(initialResults);
@@ -234,14 +237,23 @@ export default function SearchResultsScreen() {
         style={isFull ? styles.disabledCardPressable : undefined}
       >
         <Card
-          style={
-            selectedParkingId === item.id ? styles.selectedCard : styles.card
-          }
+          style={[
+            selectedParkingId === item.id ? styles.selectedCard : styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor:
+                selectedParkingId === item.id ? colors.accent : colors.border,
+            },
+          ]}
         >
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleBlock}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.address}>{item.address}</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {item.name}
+              </Text>
+              <Text style={[styles.address, { color: colors.textMuted }]}>
+                {item.address}
+              </Text>
             </View>
             <View
               style={[
@@ -261,14 +273,22 @@ export default function SearchResultsScreen() {
           </View>
 
           <View style={styles.metaRow}>
-            <Text style={styles.availabilityText}>{availabilityText}</Text>
-            <Text style={styles.price}>
+            <Text style={[styles.availabilityText, { color: colors.text }]}>
+              {availabilityText}
+            </Text>
+            <Text style={[styles.price, { color: colors.textMuted }]}>
               {formatPrice(item.pricePerHour)}
               {t("common.perHour")}
             </Text>
           </View>
 
-          <Text style={[styles.detailsLink, isFull && styles.detailsLinkDisabled]}>
+          <Text
+            style={[
+              styles.detailsLink,
+              { color: colors.accent },
+              isFull && styles.detailsLinkDisabled,
+            ]}
+          >
             {isFull ? t("search.noSpotsAvailable") : t("search.viewDetails")}
           </Text>
         </Card>
@@ -277,16 +297,21 @@ export default function SearchResultsScreen() {
   };
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper style={{ backgroundColor: colors.background }}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
-        <View style={styles.summaryPill}>
-          <Text style={styles.summaryTitle} numberOfLines={1}>
+        <View
+          style={[
+            styles.summaryPill,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.summaryTitle, { color: colors.text }]} numberOfLines={1}>
             {title}
           </Text>
-          <Text style={styles.summarySubtitle} numberOfLines={1}>
+          <Text style={[styles.summarySubtitle, { color: colors.textMuted }]} numberOfLines={1}>
             {timing}
           </Text>
         </View>
@@ -362,7 +387,7 @@ export default function SearchResultsScreen() {
 
       <View style={styles.resultsHeader}>
         <View style={styles.resultsHeaderRow}>
-          <Text style={theme.Typography.subtitle}>
+          <Text style={[theme.Typography.subtitle, { color: colors.text }]}>
             {t("search.availableParking")}
           </Text>
           {token ? (
@@ -382,7 +407,7 @@ export default function SearchResultsScreen() {
             </Pressable>
           ) : null}
         </View>
-        <Text style={styles.resultCount}>
+          <Text style={[styles.resultCount, { color: colors.textMuted }]}>
           {t("search.resultsCount", { count: results.length })} ·{" "}
           {search?.parkingType === "all" || !search?.parkingType
             ? t("search.allTypes")
@@ -394,7 +419,9 @@ export default function SearchResultsScreen() {
 
       {results.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t("search.noOptions")}</Text>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            {t("search.noOptions")}
+          </Text>
         </View>
       ) : (
         <FlatList

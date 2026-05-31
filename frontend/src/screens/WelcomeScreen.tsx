@@ -18,6 +18,7 @@ import Logo from "../components/Logo";
 import type { RootStackParamList } from "../navigation/types";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -25,6 +26,8 @@ export default function WelcomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { login } = useAuth();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -58,13 +61,18 @@ export default function WelcomeScreen() {
             <Logo size={72} style={styles.logo} />
 
             <SectionTitle small>{"ParkPal"}</SectionTitle>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
               {t("auth.subtitle")}
             </Text>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardInner}>
+            <View
+              style={[
+                styles.cardInner,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Input
                 placeholder={t("auth.email")}
                 keyboardType="email-address"
@@ -121,7 +129,9 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.bottomRowInline}>
-            <Text style={styles.bottomText}>{t("auth.noAccount")}</Text>
+            <Text style={[styles.bottomText, { color: colors.textMuted }]}>
+              {t("auth.noAccount")}
+            </Text>
             <Pressable onPress={() => navigation.navigate("Register")}>
               <Text style={styles.registerLink}>{t("auth.registerNow")}</Text>
             </Pressable>
@@ -153,6 +163,7 @@ const styles = StyleSheet.create({
   cardInner: {
     backgroundColor: theme.Colors.surface,
     borderRadius: theme.Radius.lg,
+    borderWidth: 1,
     padding: theme.Spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },

@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppLocation } from "../context/AppLocationContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import theme from "../theme";
 
 let Feather: any = null;
@@ -19,9 +20,11 @@ export default function AppHeader({
   onNotificationPress,
 }: Props) {
   const { locationLabel } = useAppLocation();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.header }]}>
       <View style={styles.brandRow}>
         <View style={styles.brandIcon}>
           {Feather ? (
@@ -30,13 +33,25 @@ export default function AppHeader({
             <Text style={styles.brandFallback}>⌖</Text>
           )}
         </View>
-        <Text style={styles.brandText}>ParkPal</Text>
+        <Text style={[styles.brandText, { color: colors.text }]}>ParkPal</Text>
       </View>
 
       <View style={styles.actions}>
-        <View style={styles.locationPill}>
+        <View
+          style={[
+            styles.locationPill,
+            {
+              backgroundColor:
+                themeTokens.mode === "dark" ? "rgba(18,38,69,0.88)" : "#ffffff",
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <View style={styles.locationDot} />
-          <Text style={styles.locationText} numberOfLines={1}>
+          <Text
+            style={[styles.locationText, { color: colors.textMuted }]}
+            numberOfLines={1}
+          >
             {locationLabel}
           </Text>
         </View>
@@ -44,13 +59,20 @@ export default function AppHeader({
           onPress={onNotificationPress}
           style={({ pressed }) => [
             styles.iconButton,
+            {
+              backgroundColor:
+                themeTokens.mode === "dark" ? "rgba(18,38,69,0.88)" : "#ffffff",
+              borderColor: colors.border,
+            },
             pressed && onNotificationPress ? { opacity: 0.82 } : null,
           ]}
         >
           {Feather ? (
-            <Feather name="bell" size={17} color="#c7d7ee" />
+            <Feather name="bell" size={17} color={colors.textMuted} />
           ) : (
-            <Text style={styles.iconButtonText}>!</Text>
+            <Text style={[styles.iconButtonText, { color: colors.textMuted }]}>
+              !
+            </Text>
           )}
         </Pressable>
       </View>
@@ -64,7 +86,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.Spacing.md,
     paddingTop: theme.Spacing.sm,
     paddingBottom: theme.Spacing.sm,
-    backgroundColor: "#071426",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -93,11 +114,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
   },
-  brandText: {
-    color: "#f8fbff",
-    fontSize: 24,
-    fontWeight: "800",
-  },
+  brandText: { fontSize: 24, fontWeight: "800" },
   actions: {
     flexDirection: "row",
     alignItems: "center",
@@ -108,8 +125,6 @@ const styles = StyleSheet.create({
     maxWidth: 150,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(148,171,207,0.24)",
-    backgroundColor: "rgba(18,38,69,0.88)",
     paddingHorizontal: theme.Spacing.sm,
     flexDirection: "row",
     alignItems: "center",
@@ -122,7 +137,6 @@ const styles = StyleSheet.create({
     marginRight: theme.Spacing.xs,
   },
   locationText: {
-    color: "#c7d7ee",
     fontWeight: "800",
     fontSize: 12,
   },
@@ -134,11 +148,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: theme.Spacing.sm,
     borderWidth: 1,
-    borderColor: "rgba(148,171,207,0.18)",
-    backgroundColor: "rgba(18,38,69,0.88)",
   },
   iconButtonText: {
-    color: "#c7d7ee",
     fontWeight: "800",
   },
 });

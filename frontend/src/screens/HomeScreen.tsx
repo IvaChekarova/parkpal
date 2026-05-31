@@ -25,6 +25,7 @@ import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAppLocation } from "../context/AppLocationContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import { parkingApi, ParkingSummary } from "../services/parkingApi";
 import theme from "../theme";
 import type {
@@ -210,6 +211,8 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const { formatPrice } = useCurrency();
   const { locationLabel, setLocationLabel } = useAppLocation();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const { height: windowHeight } = useWindowDimensions();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [mode, setMode] = React.useState<SearchMode>("one-time");
@@ -552,8 +555,13 @@ export default function HomeScreen() {
     : error;
 
   return (
-    <ScreenWrapper style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <ScreenWrapper style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background },
+        ]}
+      >
         <AppHeader />
 
         <View style={[styles.hero, { height: mapHeight }]}>
@@ -593,7 +601,18 @@ export default function HomeScreen() {
               </Marker>
             ))}
           </MapView>
-          <View pointerEvents="none" style={styles.mapOverlay} />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.mapOverlay,
+              {
+                backgroundColor:
+                  themeTokens.mode === "dark"
+                    ? "rgba(3,13,29,0.12)"
+                    : "rgba(255,255,255,0.05)",
+              },
+            ]}
+          />
 
           <Pressable
             onPress={() => {
@@ -662,13 +681,17 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.nearbySection}>
+        <View
+          style={[styles.nearbySection, { backgroundColor: colors.background }]}
+        >
           <View style={styles.sectionHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>{t("home.nearbyParking")}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {t("home.nearbyParking")}
+              </Text>
             </View>
             {!isLoadingNearby && nearbyParkings.length > 0 ? (
-              <Text style={styles.sectionCount}>
+              <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
                 {t("common.spotsFound", { count: nearbyParkings.length })}
               </Text>
             ) : null}
@@ -691,6 +714,7 @@ export default function HomeScreen() {
                   parking={parking}
                   formatPrice={formatPrice}
                   t={t}
+                  colors={colors}
                   onPress={() =>
                     navigation.navigate("ParkingDetails", {
                       parkingId: parking.id,
@@ -725,11 +749,14 @@ export default function HomeScreen() {
           <View
             style={[
               styles.searchModal,
+              { backgroundColor: colors.header, borderColor: colors.border },
               activeDatePicker && styles.searchModalDimmed,
             ]}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("home.startSearch")}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("home.startSearch")}
+              </Text>
               <Pressable
                 onPress={() => setModalVisible(false)}
                 style={styles.closeButton}
@@ -738,7 +765,12 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.progressModeRow}>
+            <View
+              style={[
+                styles.progressModeRow,
+                { backgroundColor: colors.input, borderColor: colors.border },
+              ]}
+            >
               {[
                 { label: t("home.oneTime"), value: "one-time" as const },
                 { label: t("home.longTerm"), value: "long-term" as const },
@@ -766,14 +798,16 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            <View style={styles.formCard}>
-              <Text style={styles.formCardTitle}>{t("home.where")}</Text>
-              <View style={styles.whereInlineInput}>
+            <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.formCardTitle, { color: colors.text }]}>
+                {t("home.where")}
+              </Text>
+              <View style={[styles.whereInlineInput, { backgroundColor: colors.input, borderColor: colors.border }]}>
                 {Feather ? (
                   <Feather name="search" size={16} color="#86a8cf" />
                 ) : null}
                 <TextInput
-                  style={styles.whereInputText}
+                  style={[styles.whereInputText, { color: colors.text }]}
                   placeholderTextColor="#86a8cf"
                   returnKeyType="search"
                   placeholder={t("home.searchAddress")}
@@ -787,8 +821,8 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.formCard}>
-              <Text style={styles.formCardTitle}>
+            <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.formCardTitle, { color: colors.text }]}>
                 {mode === "long-term" ? t("home.dates") : t("home.when")}
               </Text>
               {mode === "one-time" ? (
@@ -825,8 +859,10 @@ export default function HomeScreen() {
               )}
             </View>
 
-            <View style={styles.formCard}>
-              <Text style={styles.formCardTitle}>{t("home.type")}</Text>
+            <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.formCardTitle, { color: colors.text }]}>
+                {t("home.type")}
+              </Text>
               {mode === "long-term" ? (
                 <View style={styles.privateOnlyCard}>
                   <Text style={styles.privateOnlyTitle}>
@@ -958,11 +994,19 @@ function NearbyParkingCard({
   parking,
   formatPrice,
   t,
+  colors,
   onPress,
 }: {
   parking: NearbyParking;
   formatPrice: (amountInEur: number) => string;
   t: (key: string, options?: Record<string, unknown>) => string;
+  colors: {
+    surface: string;
+    text: string;
+    textMuted: string;
+    border: string;
+    accent: string;
+  };
   onPress: () => void;
 }) {
   const labelKey = getAvailabilityLabelKey(parking);
@@ -1007,21 +1051,25 @@ function NearbyParkingCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.nearbyCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
         pressed && { opacity: 0.86 },
       ]}
     >
       <View style={styles.nearbyCardContent}>
         <View style={styles.nearbyCardTop}>
           <View style={styles.nearbyTitleBlock}>
-            <Text style={styles.nearbyName} numberOfLines={1}>
+            <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
               {parking.name}
             </Text>
-            <Text style={styles.nearbyDistance} numberOfLines={1}>
+            <Text style={[styles.nearbyDistance, { color: colors.textMuted }]} numberOfLines={1}>
               {formatDistance(parking.distanceKm, t)} ·{" "}
               {formatParkingType(parking.parkingType, t)} · ★ 4.8
             </Text>
           </View>
-          <Text style={styles.nearbyPrice}>
+          <Text style={[styles.nearbyPrice, { color: colors.accent }]}>
             {formatPrice(parking.pricePerHour)}
             {t("common.perHour")}
           </Text>
@@ -1044,7 +1092,9 @@ function NearbyParkingCard({
               ]}
             />
           </View>
-          <Text style={styles.nearbyAvailability}>{availabilityText}</Text>
+          <Text style={[styles.nearbyAvailability, { color: colors.textMuted }]}>
+            {availabilityText}
+          </Text>
           <View
             style={[
               styles.nearbyBadge,
@@ -1058,7 +1108,7 @@ function NearbyParkingCard({
         </View>
       </View>
 
-      <Text style={styles.nearbyChevron}>›</Text>
+      <Text style={[styles.nearbyChevron, { color: colors.textMuted }]}>›</Text>
     </Pressable>
   );
 }
@@ -1074,19 +1124,24 @@ function DateField({
   isSelected: boolean;
   onPress: () => void;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <View style={styles.dateFieldWrapper}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
           styles.dateField,
+          { backgroundColor: colors.input, borderColor: colors.border },
           pressed && { opacity: 0.82 },
         ]}
       >
         <Text
           style={[
             styles.dateFieldText,
+            { color: colors.text },
             !isSelected && styles.dateFieldPlaceholder,
           ]}
         >

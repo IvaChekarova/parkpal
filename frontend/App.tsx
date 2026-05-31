@@ -11,17 +11,20 @@ import {
   LocalizationProvider,
   useLocalization,
 } from "./src/context/LocalizationContext";
+import { ThemeModeProvider, useThemeMode } from "./src/context/ThemeModeContext";
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <LocalizationProvider>
-          <CurrencyProvider>
-            <AppLocationProvider>
-              <AppContent />
-            </AppLocationProvider>
-          </CurrencyProvider>
+          <ThemeModeProvider>
+            <CurrencyProvider>
+              <AppLocationProvider>
+                <AppContent />
+              </AppLocationProvider>
+            </CurrencyProvider>
+          </ThemeModeProvider>
         </LocalizationProvider>
       </AuthProvider>
     </SafeAreaProvider>
@@ -30,12 +33,18 @@ export default function App() {
 
 function AppContent() {
   const { isLanguageReady } = useLocalization();
+  const { isThemeReady, themeTokens } = useThemeMode();
 
-  if (!isLanguageReady) {
+  if (!isLanguageReady || !isThemeReady) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color="#38bdf8" />
-        <StatusBar style="light" />
+      <View
+        style={[
+          styles.loading,
+          { backgroundColor: themeTokens.colors.background },
+        ]}
+      >
+        <ActivityIndicator color={themeTokens.colors.accent} />
+        <StatusBar style={themeTokens.mode === "dark" ? "light" : "dark"} />
       </View>
     );
   }
@@ -43,7 +52,7 @@ function AppContent() {
   return (
     <NavigationContainer>
       <RootNavigator />
-      <StatusBar style="auto" />
+      <StatusBar style={themeTokens.mode === "dark" ? "light" : "dark"} />
     </NavigationContainer>
   );
 }

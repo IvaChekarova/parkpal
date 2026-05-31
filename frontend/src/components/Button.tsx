@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, StyleSheet, ViewStyle } from "react-native";
 import theme from "../theme";
+import { useThemeMode } from "../context/ThemeModeContext";
 
 type Props = {
   title: string;
@@ -17,18 +18,20 @@ export default function Button({
   disabled = false,
   style,
 }: Props) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const bg =
     variant === "primary"
-      ? theme.Colors.primary
+      ? colors.accentStrong
       : variant === "secondary"
-        ? theme.Colors.secondaryGreen
+        ? colors.success
         : "transparent";
 
-  const textColor = variant === "outline" ? theme.Colors.primary : "#fff";
+  const textColor = variant === "outline" ? colors.accent : "#fff";
 
   const border =
     variant === "outline"
-      ? { borderWidth: 1, borderColor: theme.Colors.primary }
+      ? { borderWidth: 1, borderColor: colors.accent }
       : {};
 
   return (

@@ -18,6 +18,7 @@ import AppHeader from "../components/AppHeader";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import type { RootStackParamList } from "../navigation/types";
 import { reservationApi, Reservation } from "../services/reservationApi";
 import theme from "../theme";
@@ -130,6 +131,8 @@ export default function ReservationsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const [reservations, setReservations] = React.useState<Reservation[]>([]);
   const [selectedType, setSelectedType] =
     React.useState<ReservationTypeTab>("ONE_TIME");
@@ -226,16 +229,22 @@ export default function ReservationsScreen() {
     const isCancelling = cancellingId === item.id;
 
     return (
-      <View style={[styles.card, important && styles.cardImportant]}>
+      <View
+        style={[
+          styles.card,
+          important && styles.cardImportant,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         <View style={styles.rowTop}>
           <View style={{ flex: 1 }}>
             <Text
-              style={styles.cardTitle}
+              style={[styles.cardTitle, { color: colors.text }]}
               numberOfLines={1}
             >
               {item.parking.name}
             </Text>
-            <Text style={styles.cardAddress} numberOfLines={2}>
+            <Text style={[styles.cardAddress, { color: colors.textMuted }]} numberOfLines={2}>
               {item.parking.address}, {item.parking.city}
             </Text>
           </View>
@@ -259,7 +268,7 @@ export default function ReservationsScreen() {
         </View>
 
         <View style={styles.rowBottom}>
-          <Text style={styles.cardMeta}>
+          <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
             {formatDate(item.startTime)} •{" "}
             {formatDuration(item.durationMinutes, t)}
           </Text>
@@ -312,11 +321,13 @@ export default function ReservationsScreen() {
   }
 
   return (
-    <ScreenWrapper style={styles.screen}>
+    <ScreenWrapper style={[styles.screen, { backgroundColor: colors.background }]}>
       <AppHeader />
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.screenTitle}>{t("reservations.title")}</Text>
+          <Text style={[styles.screenTitle, { color: colors.text }]}>
+            {t("reservations.title")}
+          </Text>
           <Pressable
             onPress={() => navigation.navigate("ReservationHistory")}
             style={({ pressed }) => [
@@ -328,7 +339,12 @@ export default function ReservationsScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.segmentedControl}>
+        <View
+          style={[
+            styles.segmentedControl,
+            { backgroundColor: colors.input, borderColor: colors.border },
+          ]}
+        >
           {RESERVATION_TYPE_TABS.map((item) => {
             const isActive = selectedType === item.value;
 
@@ -357,15 +373,20 @@ export default function ReservationsScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.empty}>
+        <View style={[styles.empty, { backgroundColor: colors.background }]}>
           <ActivityIndicator color="#38bdf8" />
         </View>
       ) : error ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>{error}</Text>
+        <View style={[styles.empty, { backgroundColor: colors.background }]}>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>{error}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.listContent}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.listContent,
+            { backgroundColor: colors.background },
+          ]}
+        >
           {active.length > 0 ? (
             <View>
               <Text style={styles.sectionTitle}>{t("reservations.active")}</Text>
@@ -409,12 +430,22 @@ export default function ReservationsScreen() {
 }
 
 function EmptyState({ title }: { title: string }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
-    <View style={styles.emptyCard}>
+    <View
+      style={[
+        styles.emptyCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.emptyIcon}>
         <Text style={styles.emptyIconText}>P</Text>
       </View>
-      <Text style={styles.sectionEmptyText}>{title}</Text>
+      <Text style={[styles.sectionEmptyText, { color: colors.textMuted }]}>
+        {title}
+      </Text>
     </View>
   );
 }

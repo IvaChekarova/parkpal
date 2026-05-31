@@ -3,6 +3,7 @@ import { Text, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
+import { useThemeMode } from "../context/ThemeModeContext";
 import HomeScreen from "../screens/HomeScreen";
 import ParkingDetailsScreen from "../screens/ParkingDetailsScreen";
 import ReservationConfirmScreen from "../screens/ReservationConfirmScreen";
@@ -71,14 +72,22 @@ function ReservationsStackScreen() {
 
 export default function AppTabs() {
   const { t } = useTranslation();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: "#38bdf8",
-        tabBarInactiveTintColor: "#86a8cf",
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: colors.tabBar,
+            borderTopColor: colors.border,
+          },
+        ],
         tabBarItemStyle: styles.tabBarItem,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ color, size }) => {

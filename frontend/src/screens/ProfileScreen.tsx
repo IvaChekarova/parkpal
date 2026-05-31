@@ -25,6 +25,7 @@ import {
   SupportedLanguage,
   useLocalization,
 } from "../context/LocalizationContext";
+import { ThemeMode, useThemeMode } from "../context/ThemeModeContext";
 import { reservationApi } from "../services/reservationApi";
 import { getAbsoluteProfileImageUrl, userApi } from "../services/userApi";
 
@@ -36,7 +37,14 @@ try {
   Feather = null;
 }
 
-type ModalType = "language" | "currency" | "notifications" | "support" | "privacy" | null;
+type ModalType =
+  | "language"
+  | "currency"
+  | "theme"
+  | "notifications"
+  | "support"
+  | "privacy"
+  | null;
 type SettingsAction = {
   key: string;
   value?: string;
@@ -48,6 +56,7 @@ const languages: { label: string; value: SupportedLanguage }[] = [
   { label: "Македонски", value: "mk" },
 ];
 const currencies: SupportedCurrency[] = ["EUR", "MKD", "USD"];
+const themes: ThemeMode[] = ["dark", "light"];
 
 const getInitial = (name?: string | null) => {
   return name?.trim().charAt(0).toUpperCase() || "P";
@@ -65,6 +74,8 @@ const getNotificationStatus = (
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { language, setLanguage } = useLocalization();
+  const { selectedTheme, setTheme, themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const { logout, token, updateUser, user } = useAuth();
   const { selectedCurrency, setSelectedCurrency } = useCurrency();
   const [activeModal, setActiveModal] = React.useState<ModalType>(null);
@@ -120,6 +131,11 @@ export default function ProfileScreen() {
       modal: "notifications" as const,
     },
     { key: t("profile.currency"), value: selectedCurrency, modal: "currency" as const },
+    {
+      key: t("profile.theme"),
+      value: selectedTheme === "dark" ? t("profile.dark") : t("profile.light"),
+      modal: "theme" as const,
+    },
     {
       key: t("profile.language"),
       value: languages.find((item) => item.value === language)?.label,
@@ -215,10 +231,20 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenWrapper style={styles.screen}>
+    <ScreenWrapper style={[styles.screen, { backgroundColor: colors.background }]}>
       <AppHeader />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.profileCard}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <View
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <Pressable
             onPress={openAvatarOptions}
             disabled={isUpdatingPhoto}
@@ -241,13 +267,20 @@ export default function ProfileScreen() {
               )}
             </View>
           </Pressable>
-          <Text style={styles.profileName}>
+          <Text style={[styles.profileName, { color: colors.text }]}>
             {user?.fullName ?? t("profile.parkpalUser")}
           </Text>
-          <Text style={styles.emailText}>{user?.email ?? t("profile.signedIn")}</Text>
+          <Text style={[styles.emailText, { color: colors.textMuted }]}>
+            {user?.email ?? t("profile.signedIn")}
+          </Text>
         </View>
 
-        <View style={styles.statsCard}>
+        <View
+          style={[
+            styles.statsCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <StatItem
             label={t("profile.reservations")}
             value={reservationCount === null ? "—" : String(reservationCount)}
@@ -258,8 +291,15 @@ export default function ProfileScreen() {
           <StatItem label={t("profile.role")} value={t("profile.driver")} />
         </View>
 
-        <Text style={styles.sectionLabel}>{t("profile.settings")}</Text>
-        <View style={styles.actionsCard}>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+          {t("profile.settings")}
+        </Text>
+        <View
+          style={[
+            styles.actionsCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           {actions.map((action) => (
             <Pressable
               key={action.key}
@@ -268,15 +308,24 @@ export default function ProfileScreen() {
               }}
               style={({ pressed }) => [
                 styles.actionRow,
+                { borderBottomColor: colors.border },
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.actionText}>{action.key}</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>
+                {action.key}
+              </Text>
               <View style={styles.actionRight}>
                 {action.value ? (
-                  <Text style={styles.actionValue}>{action.value}</Text>
+                  <Text style={[styles.actionValue, { color: colors.textMuted }]}>
+                    {action.value}
+                  </Text>
                 ) : null}
-                {action.modal ? <Text style={styles.chev}>›</Text> : null}
+                {action.modal ? (
+                  <Text style={[styles.chev, { color: colors.textMuted }]}>
+                    ›
+                  </Text>
+                ) : null}
               </View>
             </Pressable>
           ))}
@@ -299,7 +348,9 @@ export default function ProfileScreen() {
         visible={activeModal === "language"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>{t("profile.selectLanguage")}</Text>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.selectLanguage")}
+        </Text>
         <View style={{ height: theme.Spacing.md }} />
         {languages.map((item) => (
           <SelectionRow
@@ -319,8 +370,10 @@ export default function ProfileScreen() {
         visible={activeModal === "currency"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>{t("profile.selectCurrency")}</Text>
-        <Text style={styles.modalBody}>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.selectCurrency")}
+        </Text>
+        <Text style={[styles.modalBody, { color: colors.textMuted }]}>
           {t("profile.currencyBody")}
         </Text>
         {currencies.map((item) => (
@@ -338,11 +391,35 @@ export default function ProfileScreen() {
       </CenteredModal>
 
       <CenteredModal
+        visible={activeModal === "theme"}
+        onClose={() => setActiveModal(null)}
+      >
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.selectTheme")}
+        </Text>
+        <View style={{ height: theme.Spacing.md }} />
+        {themes.map((item) => (
+          <SelectionRow
+            key={item}
+            label={item === "dark" ? t("profile.dark") : t("profile.light")}
+            selected={selectedTheme === item}
+            onPress={() => {
+              void setTheme(item);
+              setActiveModal(null);
+            }}
+          />
+        ))}
+        <ModalCloseButton label={t("common.cancel")} onPress={() => setActiveModal(null)} />
+      </CenteredModal>
+
+      <CenteredModal
         visible={activeModal === "notifications"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>{t("profile.notifications")}</Text>
-        <Text style={styles.modalBody}>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.notifications")}
+        </Text>
+        <Text style={[styles.modalBody, { color: colors.textMuted }]}>
           {t("profile.notificationsBody")}
         </Text>
         <ToggleRow
@@ -362,12 +439,21 @@ export default function ProfileScreen() {
         visible={activeModal === "support"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>{t("profile.supportTitle")}</Text>
-        <Text style={styles.modalBody}>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.supportTitle")}
+        </Text>
+        <Text style={[styles.modalBody, { color: colors.textMuted }]}>
           {t("profile.supportBody")}
         </Text>
-        <View style={styles.supportEmailBox}>
-          <Text style={styles.supportEmail}>support@parkpal.app</Text>
+        <View
+          style={[
+            styles.supportEmailBox,
+            { backgroundColor: colors.input, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.supportEmail, { color: colors.accent }]}>
+            support@parkpal.app
+          </Text>
         </View>
         <ModalCloseButton label={t("common.close")} onPress={() => setActiveModal(null)} />
       </CenteredModal>
@@ -376,7 +462,9 @@ export default function ProfileScreen() {
         visible={activeModal === "privacy"}
         onClose={() => setActiveModal(null)}
       >
-        <Text style={styles.modalTitle}>{t("profile.privacyTitle")}</Text>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {t("profile.privacyTitle")}
+        </Text>
         <PolicySection
           title={t("profile.privacy")}
           text={t("profile.privacyText")}
@@ -400,12 +488,15 @@ export default function ProfileScreen() {
 }
 
 function StatItem({ label, value }: { label: string; value: string }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <View style={styles.statItem}>
-      <Text style={styles.statValue} numberOfLines={1}>
+      <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
         {value}
       </Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statLabel, { color: colors.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -419,6 +510,9 @@ function CenteredModal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <Modal
       animationType="fade"
@@ -426,8 +520,18 @@ function CenteredModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard}>{children}</Pressable>
+      <Pressable
+        style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+        onPress={onClose}
+      >
+        <Pressable
+          style={[
+            styles.modalCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          {children}
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -442,6 +546,9 @@ function SelectionRow({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <Pressable
       onPress={onPress}
@@ -451,8 +558,10 @@ function SelectionRow({
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={styles.selectionLabel}>{label}</Text>
-      {selected ? <Text style={styles.selectedMark}>✓</Text> : null}
+      <Text style={[styles.selectionLabel, { color: colors.text }]}>{label}</Text>
+      {selected ? (
+        <Text style={[styles.selectedMark, { color: colors.accent }]}>✓</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -466,9 +575,12 @@ function ToggleRow({
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <View style={styles.toggleRow}>
-      <Text style={styles.selectionLabel}>{label}</Text>
+      <Text style={[styles.selectionLabel, { color: colors.text }]}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onValueChange}
@@ -483,10 +595,13 @@ function ToggleRow({
 }
 
 function PolicySection({ title, text }: { title: string; text: string }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <View style={styles.policySection}>
-      <Text style={styles.policyTitle}>{title}</Text>
-      <Text style={styles.policyText}>{text}</Text>
+      <Text style={[styles.policyTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.policyText, { color: colors.textMuted }]}>{text}</Text>
     </View>
   );
 }
@@ -498,9 +613,12 @@ function ModalCloseButton({
   label?: string;
   onPress: () => void;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <>
-      <View style={styles.modalDivider} />
+      <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
@@ -508,7 +626,7 @@ function ModalCloseButton({
           pressed && { opacity: 0.75 },
         ]}
       >
-        <Text style={styles.cancelText}>{label}</Text>
+        <Text style={[styles.cancelText, { color: colors.accent }]}>{label}</Text>
       </Pressable>
     </>
   );

@@ -26,6 +26,7 @@ import Button from "../components/Button";
 import theme from "../theme";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAppLocation } from "../context/AppLocationContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 import type { RootStackParamList, SearchData } from "../navigation/types";
 import { parkingApi, ParkingDetails } from "../services/parkingApi";
 import { reservationApi, ReservationType } from "../services/reservationApi";
@@ -188,6 +189,8 @@ export default function ParkingDetailsScreen() {
   const { locationLabel } = useAppLocation();
   const { token } = useAuth();
   const { formatPrice } = useCurrency();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const [parking, setParking] = React.useState<ParkingDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(Boolean(parkingId));
   const [isReserving, setIsReserving] = React.useState(false);
@@ -652,8 +655,13 @@ export default function ParkingDetailsScreen() {
       : t("parking.selectTimesPlaceholder");
 
   return (
-    <ScreenWrapper style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <ScreenWrapper style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background },
+        ]}
+      >
         {isLoading ? (
           <View style={styles.stateContainer}>
             <ActivityIndicator color={theme.Colors.primary} />
@@ -735,7 +743,7 @@ export default function ParkingDetailsScreen() {
               </View>
             </View>
 
-            <View style={styles.content}>
+            <View style={[styles.content, { backgroundColor: colors.background }]}>
               <View style={styles.quickInfoGrid}>
                 <InfoTile
                   label={t("parking.price")}
@@ -758,9 +766,16 @@ export default function ParkingDetailsScreen() {
                 />
               </View>
 
-              <View style={styles.sectionCard}>
+              <View
+                style={[
+                  styles.sectionCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>{t("parking.features")}</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    {t("parking.features")}
+                  </Text>
                 </View>
                 <View style={styles.amenitiesRow}>
                   {featureChips.map((a: string) => (
@@ -771,13 +786,22 @@ export default function ParkingDetailsScreen() {
                     </View>
                   ))}
                 </View>
-                <Text style={styles.descriptionText}>{data.description}</Text>
+                <Text style={[styles.descriptionText, { color: colors.textMuted }]}>
+                  {data.description}
+                </Text>
               </View>
 
-              <View style={styles.reservationCard}>
+              <View
+                style={[
+                  styles.reservationCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
                 <View style={styles.sectionHeaderRow}>
                   <View>
-                    <Text style={styles.sectionTitle}>{t("parking.bookSpot")}</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      {t("parking.bookSpot")}
+                    </Text>
                   </View>
                 </View>
 
@@ -968,14 +992,18 @@ function TimeField({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
     <View style={styles.timeSection}>
-      <Text style={styles.timeLabel}>{label}</Text>
+      <Text style={[styles.timeLabel, { color: colors.textMuted }]}>{label}</Text>
       <Pressable
         disabled={disabled}
         onPress={onPress}
         style={({ pressed }) => [
           styles.timeField,
+          { backgroundColor: colors.input, borderColor: colors.border },
           disabled && styles.timeFieldDisabled,
           pressed && { opacity: 0.82 },
         ]}
@@ -983,6 +1011,7 @@ function TimeField({
         <Text
           style={[
             styles.timeFieldText,
+            { color: colors.text },
             !value && styles.timeFieldPlaceholder,
           ]}
         >
@@ -1003,8 +1032,16 @@ function InfoTile({
   value: string;
   iconName?: string;
 }) {
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
+
   return (
-    <View style={styles.infoTile}>
+    <View
+      style={[
+        styles.infoTile,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       {iconName && Feather ? (
         <View style={styles.infoTileIcon}>
           <Feather name={iconName} size={17} color="#38bdf8" />
@@ -1012,9 +1049,11 @@ function InfoTile({
       ) : iconName ? (
         <Text style={styles.infoTileAccent}>•</Text>
       ) : null}
-      <Text style={styles.infoTileLabel}>{label}</Text>
+      <Text style={[styles.infoTileLabel, { color: colors.textMuted }]}>
+        {label}
+      </Text>
       <Text
-        style={styles.infoTileValue}
+        style={[styles.infoTileValue, { color: colors.text }]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.72}

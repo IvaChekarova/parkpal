@@ -18,6 +18,7 @@ import Logo from "../components/Logo";
 import type { RootStackParamList } from "../navigation/types";
 import theme from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { useThemeMode } from "../context/ThemeModeContext";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
@@ -25,6 +26,8 @@ export default function RegisterScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const { register } = useAuth();
+  const { themeTokens } = useThemeMode();
+  const colors = themeTokens.colors;
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,14 +69,21 @@ export default function RegisterScreen() {
         <View style={styles.topSection}>
           <Logo size={72} style={styles.logo} />
           <SectionTitle small>{"ParkPal"}</SectionTitle>
-          <Text style={styles.subtitle}>{t("auth.createAccount")}</Text>
-          <Text style={styles.support}>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            {t("auth.createAccount")}
+          </Text>
+          <Text style={[styles.support, { color: colors.textMuted }]}>
             {t("auth.registerSupport")}
           </Text>
         </View>
 
         <View style={styles.cardWrapper}>
-          <View style={styles.cardInner}>
+          <View
+            style={[
+              styles.cardInner,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Input
               placeholder={t("auth.fullName")}
               value={fullName}
@@ -117,7 +127,9 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.bottomRow}>
-            <Text style={styles.bottomText}>{t("auth.alreadyHaveAccount")}</Text>
+            <Text style={[styles.bottomText, { color: colors.textMuted }]}>
+              {t("auth.alreadyHaveAccount")}
+            </Text>
             <Pressable onPress={() => navigation.navigate("Welcome")}>
               <Text style={styles.loginLink}>{t("auth.logInLink")}</Text>
             </Pressable>
@@ -151,6 +163,7 @@ const styles = StyleSheet.create({
   cardInner: {
     backgroundColor: theme.Colors.surface,
     borderRadius: theme.Radius.lg,
+    borderWidth: 1,
     padding: theme.Spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
